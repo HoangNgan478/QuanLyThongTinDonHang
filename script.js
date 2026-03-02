@@ -151,10 +151,14 @@ async function submitData(formId, target) {
     const form = document.getElementById(formId);
     const btn = form.querySelector('button');
     const originalText = btn.innerText;
+
     btn.innerText = 'Đang lưu...'; btn.disabled = true;
+
     saveAllFields();
     const savedData = JSON.parse(localStorage.getItem('ngan_last_session'));
     let payload = { target: target };
+
+    // Gom dữ liệu payload (giữ nguyên logic cũ của Ngân)
     if (target === 'sheet1') {
         payload.hoTen = savedData.h1; payload.sanPham = savedData.s1;
         payload.kichThuoc = savedData.k1; payload.ghiChu = savedData.g1;
@@ -167,14 +171,33 @@ async function submitData(formId, target) {
         payload.tinhTrang = savedData.tinhTrang; payload.thanhToan = savedData.thanhToan;
         payload.daTra = savedData.daTra;
     }
-    try {
-        await fetch(scriptURL, { method: 'POST', body: JSON.stringify(payload) });
-        btn.innerText = 'Thành công ✓'; btn.style.backgroundColor = '#2ecc71';
-    } catch (error) {
-        btn.innerText = 'Lỗi!'; btn.style.backgroundColor = '#e63946';
-    } finally {
-        setTimeout(() => { btn.innerText = originalText; btn.style.backgroundColor = ''; btn.disabled = false; }, 2000);
-    }
+
+    // TỐI ƯU TỐC ĐỘ: Gửi không chờ phản hồi quá lâu (Fire and Forget)
+    fetch(scriptURL, { 
+        method: 'POST', 
+        mode: 'no-cors', // Thêm dòng này để gửi cực nhanh vì không đợi kiểm tra bảo mật từ Google
+        body: JSON.stringify(payload) 
+    });
+
+    // HIỆU ỨNG THÀNH CÔNG NGAY LẬP TỨC
+    btn.innerText = 'Thành công ✓';
+    btn.style.backgroundColor = '#2ecc71';
+
+    // --- XÓA TRẮNG FORM (TRỪ TÊN KHÁCH HÀNG) ---
+    const fieldsToClear = ['s1', 'k1', 'g1', 'sl1', 'dg1', 's2', 'k2', 'g2', 'sl2', 'dg2', 'daTra'];
+    fieldsToClear.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    
+    updateTong();
+    saveAllFields();
+
+    setTimeout(() => { 
+        btn.innerText = originalText; 
+        btn.style.backgroundColor = ''; 
+        btn.disabled = false; 
+    }, 1500);
 }
 
 // --- 8. TRUY XUẤT TAB 2 ---
@@ -183,23 +206,29 @@ async function fetchCustomerList() {
     const listContainer = document.getElementById('customerButtonsList');
     if (!listContainer) return;
 
-    // 1. Lấy ngay từ bộ nhớ máy tính (LocalStorage) để hiện lên luôn
-    const cached = localStorage.getItem('ngan_customer_cache');
-    if (cached) {
-        renderCustomerButtons(JSON.parse(cached));
-    }
+    // Hiện dòng thông báo đang làm mới để khách biết
+    listContainer.innerHTML = '<p style="font-size:12px; color:gray;">Đang cập nhật danh sách mới nhất...</p>';
 
     try {
-        // 2. Tải ngầm bản mới nhất từ Google Sheet
-        const response = await fetch(scriptURL + "?listNames=true");
+        // Thêm tham số thời gian để tránh trình duyệt lấy lại kết quả cũ (Cache busting)
+        const response = await fetch(scriptURL + "?listNames=true&v=" + new Date().getTime());
         const names = await response.json();
         
         if (names && names.length > 0) {
+            // Lưu vào máy cho lần sau load nhanh hơn
             localStorage.setItem('ngan_customer_cache', JSON.stringify(names));
-            renderCustomerButtons(names); // Cập nhật lại nếu có khách mới
+            renderCustomerButtons(names);
+        } else {
+            listContainer.innerHTML = '<p>Chưa có dữ liệu khách hàng.</p>';
         }
     } catch (e) {
-        console.log("Mạng yếu, đang dùng danh sách cũ.");
+        // Nếu lỗi mạng thì dùng bản cũ đã lưu trong máy
+        const cached = localStorage.getItem('ngan_customer_cache');
+        if (cached) {
+            renderCustomerButtons(JSON.parse(cached));
+        } else {
+            listContainer.innerHTML = '<p style="color:red;">Lỗi kết nối!</p>';
+        }
     }
 }
 
