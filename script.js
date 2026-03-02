@@ -1,4 +1,4 @@
-const scriptURL = 'https://script.google.com/macros/s/AKfycbyfqNkqkjtxdQhUJuEbGawJG2HizNUMjRvoAy-aP-mkdKPwBOIlVp3Sjf48kDnyPHCZ/exec';
+const scriptURL = 'https://script.google.com/macros/s/AKfycbyX8LFxC1s-NDSQfGdfHYfI-iVtbT3SXm0vWy4Z912thj00PBv7aEioZWI9DYuEN1xQ/exec';
 
 // --- 1. CHUYỂN TAB ---
 function showTab(tabId, element) {
@@ -177,27 +177,41 @@ async function submitData(formId, target) {
 async function fetchCustomerList() {
     const listContainer = document.getElementById('customerButtonsList');
     if (!listContainer) return;
+
+    // 1. Lấy ngay từ bộ nhớ máy tính (LocalStorage) để hiện lên luôn
+    const cached = localStorage.getItem('ngan_customer_cache');
+    if (cached) {
+        renderCustomerButtons(JSON.parse(cached));
+    }
+
     try {
+        // 2. Tải ngầm bản mới nhất từ Google Sheet
         const response = await fetch(scriptURL + "?listNames=true");
         const names = await response.json();
-        if (!names || names.length === 0) {
-            listContainer.innerHTML = '<p>Chưa có dữ liệu khách hàng.</p>';
-            return;
+        
+        if (names && names.length > 0) {
+            localStorage.setItem('ngan_customer_cache', JSON.stringify(names));
+            renderCustomerButtons(names); // Cập nhật lại nếu có khách mới
         }
-        listContainer.innerHTML = ''; 
-        names.forEach(name => {
-            const btn = document.createElement('button');
-            btn.className = 'customer-btn';
-            btn.innerText = name;
-            btn.onclick = function() {
-                document.getElementById('searchName').value = name; 
-                searchCustomer(); 
-            };
-            listContainer.appendChild(btn);
-        });
     } catch (e) {
-        listContainer.innerHTML = '<p style="color:red;">Lỗi tải danh sách khách.</p>';
+        console.log("Mạng yếu, đang dùng danh sách cũ.");
     }
+}
+
+// Hàm vẽ nút bấm (giữ nguyên logic cũ nhưng tách ra cho gọn)
+function renderCustomerButtons(names) {
+    const listContainer = document.getElementById('customerButtonsList');
+    listContainer.innerHTML = '';
+    names.forEach(name => {
+        const btn = document.createElement('button');
+        btn.className = 'customer-btn';
+        btn.innerText = name;
+        btn.onclick = () => {
+            document.getElementById('searchName').value = name;
+            searchCustomer();
+        };
+        listContainer.appendChild(btn);
+    });
 }
 
 async function searchCustomer() {
