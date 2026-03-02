@@ -24,7 +24,7 @@ function calculateQuantity(sizeStr) {
     if (match) {
         const a = parseFloat(match[1]);
         const b = parseFloat(match[2]);
-        return a * b;
+        return parseFloat((a * b).toFixed(2)); 
     }
     return null; 
 }
@@ -110,16 +110,21 @@ function syncAllToForm2() {
 const fieldsMap = { 'h1': 'h2', 's1': 's2', 'k1': 'k2', 'g1': 'g2', 'sl1': 'sl2', 'dg1': 'dg2' };
 Object.keys(fieldsMap).forEach(id1 => {
     document.getElementById(id1).addEventListener('input', (e) => {
-        const val = e.target.value;
+        let val = e.target.value;
+
         if (id1 === 'k1') {
             const autoQty = calculateQuantity(val);
             if (autoQty !== null) {
+                // Gán giá trị đã làm tròn vào ô Số lượng
                 document.getElementById('sl1').value = autoQty;
                 document.getElementById('sl2').value = autoQty;
             }
         }
+
         document.getElementById(fieldsMap[id1]).value = val;
+        
         if (id1 === 'h1' && val.length > 2) autoFillByCustomer(val);
+        // Khi tính tổng tiền, dùng parseFloat để chấp nhận số thập phân
         if (id1 === 'sl1' || id1 === 'dg1' || id1 === 'k1') updateTong();
         saveAllFields();
     });
