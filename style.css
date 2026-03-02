@@ -101,3 +101,31 @@ th { background: #f8f9fa; padding: 12px; text-align: left; border-bottom: 2px so
 td { padding: 12px; border-bottom: 1px solid #eee; }
 .invoice-summary { margin-top: 20px; text-align: right; font-size: 1.1rem; line-height: 1.6; }
 .debt-text { color: var(--red); font-weight: bold; font-size: 1.3rem; }
+
+.customer-list-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    max-height: 200px;
+    overflow-y: auto; /* Cho phép cuộn nếu quá nhiều khách */
+    padding: 10px;
+}
+
+.customer-btn {
+    background: #f0f2f5;
+    border: 1px solid #ddd;
+    padding: 8px 15px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+    color: var(--dark);
+}
+
+.customer-btn:hover {
+    background: var(--red);
+    color: white;
+    border-color: var(--red);
+    transform: scale(1.05);
+}
