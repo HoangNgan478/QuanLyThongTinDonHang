@@ -1,4 +1,6 @@
-const scriptURL = 'https://script.google.com/macros/s/AKfycbyX8LFxC1s-NDSQfGdfHYfI-iVtbT3SXm0vWy4Z912thj00PBv7aEioZWI9DYuEN1xQ/exec';
+const scriptURL = 'https://script.google.com/macros/s/AKfycbxGrI2YtA1TRZlzVGlfXRcHCEBH5mQCCmssfG_6kfriMlFamknLBRBKveP55GziOPo6/exec';
+
+const allFields = ['hoTen', 'sanPham', 'kichThuoc', 'soLuong', 'donGia', 'ghiChu', 'nguoi', 'ngay', 'tinhTrang', 'thanhToan', 'daTra'];
 
 // --- 1. CHUYỂN TAB ---
 function showTab(tabId, element) {
@@ -6,233 +8,148 @@ function showTab(tabId, element) {
     contents.forEach(content => content.classList.remove('active'));
     document.getElementById('content-' + tabId).classList.add('active');
 
-    document.querySelectorAll('.nav-item').forEach(item => {
-        item.classList.remove('active-nav');
-    });
+    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active-nav'));
     element.classList.add('active-nav');
 
-    if (tabId === 'tab2') {
-        fetchCustomerList();
-    }
+    if (tabId === 'tab2') fetchCustomerList();
 }
 
-// --- 2. HÀM TÍNH SỐ LƯỢNG TỪ KÍCH THƯỚC ---
-function calculateQuantity(sizeStr) {
-    const str = sizeStr.toLowerCase().trim();
+// --- 2. TÍNH TOÁN ---
+function updateCalculation() {
+    const sizeVal = document.getElementById('kichThuoc').value;
     const regex = /^(\d+(?:\.\d+)?)\s*[xX*]\s*(\d+(?:\.\d+)?)$/;
-    const match = str.match(regex);
+    const match = sizeVal.toLowerCase().trim().match(regex);
+    
+    // Nếu nhập axb, tự tính và làm tròn 2 chữ số
     if (match) {
-        const a = parseFloat(match[1]);
-        const b = parseFloat(match[2]);
-        return parseFloat((a * b).toFixed(2)); 
+        const autoQty = parseFloat((parseFloat(match[1]) * parseFloat(match[2])).toFixed(2));
+        document.getElementById('soLuong').value = autoQty;
     }
-    return null; 
+
+    const sl = document.getElementById('soLuong').value;
+    const dg = document.getElementById('donGia').value;
+    const total = (Number(sl) || 0) * (Number(dg) || 0);
+    document.getElementById('tongTienHienThi').value = total.toLocaleString('vi-VN') + " VND";
+    
+    saveAllFields();
 }
 
-// --- 3. HÀM LƯU TẤT CẢ FIELDS VÀO LOCALSTORAGE ---
+// --- 3. LƯU & TẢI TRẠNG THÁI ---
 function saveAllFields() {
-    const dataToSave = {
-        h1: document.getElementById('h1').value,
-        s1: document.getElementById('s1').value,
-        k1: document.getElementById('k1').value,
-        g1: document.getElementById('g1').value, 
-        sl1: document.getElementById('sl1').value,
-        dg1: document.getElementById('dg1').value,
-        h2: document.getElementById('h2').value,
-        s2: document.getElementById('s2').value,
-        k2: document.getElementById('k2').value,
-        g2: document.getElementById('g2').value, 
-        sl2: document.getElementById('sl2').value,
-        dg2: document.getElementById('dg2').value,
-        nguoi: document.getElementById('nguoi').value,
-        ngay: document.getElementById('ngay').value,
+    let data = {};
+    allFields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) data[id] = el.value;
+    });
+    localStorage.setItem('ngan_one_form_session', JSON.stringify(data));
+}
+
+function loadAllFields() {
+    const savedData = JSON.parse(localStorage.getItem('ngan_one_form_session'));
+    if (savedData) {
+        allFields.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = savedData[id] || '';
+        });
+        updateCalculation();
+    }
+}
+
+// Lắng nghe sự kiện nhập liệu
+allFields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateCalculation);
+});
+
+// --- 4. GỬI DỮ LIỆU & KIỂM TRA ĐIỀN THIẾU ---
+document.getElementById('mainForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    // DANH SÁCH CÁC Ô BẮT BUỘC PHẢI ĐIỀN
+    const requiredFields = ['hoTen', 'sanPham', 'soLuong', 'donGia', 'nguoi', 'ngay'];
+    let missingFields = [];
+
+    requiredFields.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el || !el.value.trim()) {
+            missingFields.push(id);
+            el.style.borderBottom = "2px solid #e63946";
+        } else {
+            el.style.borderBottom = "2px solid #eee";
+        }
+    });
+
+    if (missingFields.length > 0) {
+        alert("Chưa điền đủ thông tin quan trọng!");
+        document.getElementById(missingFields[0]).focus();
+        return; 
+    }
+
+    const btn = e.target.querySelector('button');
+    const originalText = btn.innerText;
+    btn.innerText = 'Đang lưu...'; btn.disabled = true;
+
+    // --- PAYLOAD: Khớp chính xác với tên biến trong file GAS của Ngân ---
+    const payload = {
+        hoTen: document.getElementById('hoTen').value,
+        sanPham: document.getElementById('sanPham').value,
+        kichThuoc: document.getElementById('kichThuoc').value,
+        soLuong: document.getElementById('soLuong').value,
+        donGia: document.getElementById('donGia').value,
+        ghiChu: document.getElementById('ghiChu').value,
+        // Chuyển 'nguoi' thành 'nguoiPhanCong' và 'ngay' thành 'ngayGiao' để GAS nhận được
+        nguoiPhanCong: document.getElementById('nguoi').value, 
+        ngayGiao: document.getElementById('ngay').value,
         tinhTrang: document.getElementById('tinhTrang').value,
         thanhToan: document.getElementById('thanhToan').value,
         daTra: document.getElementById('daTra').value
     };
-    localStorage.setItem('ngan_last_session', JSON.stringify(dataToSave));
-}
 
-// --- 4. LOGIC DANH BẠ KHÁCH HÀNG ---
-function saveCustomerToDB(name) {
-    if (!name || name.trim() === "") return;
-    let db = JSON.parse(localStorage.getItem('customerDatabase') || '{}');
-    db[name.trim().toLowerCase()] = {
-        s1: document.getElementById('s1').value,
-        k1: document.getElementById('k1').value,
-        g1: document.getElementById('g1').value,
-        dg1: document.getElementById('dg1').value
-    };
-    localStorage.setItem('customerDatabase', JSON.stringify(db));
-}
-
-function autoFillByCustomer(name) {
-    let db = JSON.parse(localStorage.getItem('customerDatabase') || '{}');
-    let data = db[name.trim().toLowerCase()];
-    if (data) {
-        document.getElementById('s1').value = data.s1 || '';
-        document.getElementById('k1').value = data.k1 || '';
-        document.getElementById('g1').value = data.g1 || '';
-        document.getElementById('dg1').value = data.dg1 || '';
-        syncAllToForm2();
-        updateTong();
-    }
-}
-
-// --- 5. HÀM ĐỔ DỮ LIỆU CŨ RA KHI MỞ WEB ---
-function loadAllFields() {
-    const savedData = JSON.parse(localStorage.getItem('ngan_last_session'));
-    if (savedData) {
-        Object.keys(savedData).forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.value = savedData[id];
-        });
-        updateTong();
-    }
-}
-
-// --- 6. TÍNH TỔNG TIỀN & ĐỒNG BỘ ---
-function updateTong() {
-    const sl = document.getElementById('sl1').value;
-    const dg = document.getElementById('dg1').value;
-    const total = (Number(sl) || 0) * (Number(dg) || 0);
-    document.getElementById('tongTienHienThi').value = total.toLocaleString('vi-VN') + " VND";
-}
-
-function syncAllToForm2() {
-    const map = { 'h1': 'h2', 's1': 's2', 'k1': 'k2', 'g1': 'g2', 'sl1': 'sl2', 'dg1': 'dg2' };
-    Object.keys(map).forEach(id1 => {
-        document.getElementById(map[id1]).value = document.getElementById(id1).value;
-    });
-}
-
-// --- LẮNG NGHE THAY ĐỔI ---
-const fieldsMap = { 'h1': 'h2', 's1': 's2', 'k1': 'k2', 'g1': 'g2', 'sl1': 'sl2', 'dg1': 'dg2' };
-Object.keys(fieldsMap).forEach(id1 => {
-    document.getElementById(id1).addEventListener('input', (e) => {
-        let val = e.target.value;
-
-        if (id1 === 'k1') {
-            const autoQty = calculateQuantity(val);
-            if (autoQty !== null) {
-                // Gán giá trị đã làm tròn vào ô Số lượng
-                document.getElementById('sl1').value = autoQty;
-                document.getElementById('sl2').value = autoQty;
-            }
-        }
-
-        document.getElementById(fieldsMap[id1]).value = val;
+    try {
+        // Gửi dữ liệu cực nhanh không chờ phản hồi CORS
+        fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
         
-        if (id1 === 'h1' && val.length > 2) autoFillByCustomer(val);
-        // Khi tính tổng tiền, dùng parseFloat để chấp nhận số thập phân
-        if (id1 === 'sl1' || id1 === 'dg1' || id1 === 'k1') updateTong();
+        btn.innerText = 'Thành công ✓';
+        btn.style.backgroundColor = '#2ecc71';
+
+        // Xóa trắng đơn (giữ lại Tên khách hoTen)
+        ['sanPham', 'kichThuoc', 'ghiChu', 'soLuong', 'donGia', 'daTra', 'nguoi', 'ngay'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        
+        updateCalculation();
         saveAllFields();
-    });
-});
-
-['nguoi', 'ngay', 'tinhTrang', 'thanhToan', 'daTra', 'g2'].forEach(id => {
-    document.getElementById(id).addEventListener('input', saveAllFields);
-});
-
-// --- 7. GỬI DỮ LIỆU ---
-document.getElementById('formSheet1').addEventListener('submit', e => {
-    e.preventDefault();
-    const name = document.getElementById('h1').value;
-    saveCustomerToDB(name);
-    submitData('formSheet1', 'sheet1');
-});
-
-document.getElementById('formSheet2').addEventListener('submit', e => {
-    e.preventDefault();
-    submitData('formSheet2', 'sheet2');
-});
-
-async function submitData(formId, target) {
-    const form = document.getElementById(formId);
-    const btn = form.querySelector('button');
-    const originalText = btn.innerText;
-
-    btn.innerText = 'Đang lưu...'; btn.disabled = true;
-
-    saveAllFields();
-    const savedData = JSON.parse(localStorage.getItem('ngan_last_session'));
-    let payload = { target: target };
-
-    // Gom dữ liệu payload (giữ nguyên logic cũ của Ngân)
-    if (target === 'sheet1') {
-        payload.hoTen = savedData.h1; payload.sanPham = savedData.s1;
-        payload.kichThuoc = savedData.k1; payload.ghiChu = savedData.g1;
-        payload.soLuong = savedData.sl1; payload.donGia = savedData.dg1;
-    } else {
-        payload.hoTen = savedData.h2; payload.sanPham = savedData.s2;
-        payload.kichThuoc = savedData.k2; payload.ghiChu = savedData.g2;
-        payload.soLuong = savedData.sl2; payload.donGia = savedData.dg2;
-        payload.nguoiPhanCong = savedData.nguoi; payload.ngayGiao = savedData.ngay;
-        payload.tinhTrang = savedData.tinhTrang; payload.thanhToan = savedData.thanhToan;
-        payload.daTra = savedData.daTra;
+        fetchCustomerList();
+    } catch (error) { 
+        btn.innerText = 'Lỗi!'; 
+    } finally {
+        setTimeout(() => { 
+            btn.innerText = originalText; 
+            btn.style.backgroundColor = ''; 
+            btn.disabled = false; 
+        }, 1500);
     }
+});
 
-    // TỐI ƯU TỐC ĐỘ: Gửi không chờ phản hồi quá lâu (Fire and Forget)
-    fetch(scriptURL, { 
-        method: 'POST', 
-        mode: 'no-cors', // Thêm dòng này để gửi cực nhanh vì không đợi kiểm tra bảo mật từ Google
-        body: JSON.stringify(payload) 
-    });
-
-    // HIỆU ỨNG THÀNH CÔNG NGAY LẬP TỨC
-    btn.innerText = 'Thành công ✓';
-    btn.style.backgroundColor = '#2ecc71';
-
-    // --- XÓA TRẮNG FORM (TRỪ TÊN KHÁCH HÀNG) ---
-    const fieldsToClear = ['s1', 'k1', 'g1', 'sl1', 'dg1', 's2', 'k2', 'g2', 'sl2', 'dg2', 'daTra'];
-    fieldsToClear.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = '';
-    });
-    
-    updateTong();
-    saveAllFields();
-
-    setTimeout(() => { 
-        btn.innerText = originalText; 
-        btn.style.backgroundColor = ''; 
-        btn.disabled = false; 
-    }, 1500);
-}
-
-// --- 8. TRUY XUẤT TAB 2 ---
-
+// --- 5. TRUY XUẤT TAB 2 (NÚT BẤM & TÌM KIẾM) ---
 async function fetchCustomerList() {
     const listContainer = document.getElementById('customerButtonsList');
     if (!listContainer) return;
-
-    // Hiện dòng thông báo đang làm mới để khách biết
-    listContainer.innerHTML = '<p style="font-size:12px; color:gray;">Đang cập nhật danh sách mới nhất...</p>';
-
+    listContainer.innerHTML = '<p style="font-size:12px; color:gray;">Đang cập nhật...</p>';
     try {
-        // Thêm tham số thời gian để tránh trình duyệt lấy lại kết quả cũ (Cache busting)
         const response = await fetch(scriptURL + "?listNames=true&v=" + new Date().getTime());
         const names = await response.json();
-        
         if (names && names.length > 0) {
-            // Lưu vào máy cho lần sau load nhanh hơn
             localStorage.setItem('ngan_customer_cache', JSON.stringify(names));
             renderCustomerButtons(names);
-        } else {
-            listContainer.innerHTML = '<p>Chưa có dữ liệu khách hàng.</p>';
         }
     } catch (e) {
-        // Nếu lỗi mạng thì dùng bản cũ đã lưu trong máy
         const cached = localStorage.getItem('ngan_customer_cache');
-        if (cached) {
-            renderCustomerButtons(JSON.parse(cached));
-        } else {
-            listContainer.innerHTML = '<p style="color:red;">Lỗi kết nối!</p>';
-        }
+        if (cached) renderCustomerButtons(JSON.parse(cached));
     }
 }
 
-// Hàm vẽ nút bấm (giữ nguyên logic cũ nhưng tách ra cho gọn)
 function renderCustomerButtons(names) {
     const listContainer = document.getElementById('customerButtonsList');
     listContainer.innerHTML = '';
@@ -240,55 +157,44 @@ function renderCustomerButtons(names) {
         const btn = document.createElement('button');
         btn.className = 'customer-btn';
         btn.innerText = name;
-        btn.onclick = () => {
-            document.getElementById('searchName').value = name;
-            searchCustomer();
-        };
+        btn.onclick = () => { document.getElementById('searchName').value = name; searchCustomer(); };
         listContainer.appendChild(btn);
     });
 }
 
 async function searchCustomer() {
-    const nameInput = document.getElementById('searchName');
-    const name = nameInput.value.trim();
+    const name = document.getElementById('searchName').value.trim();
     if (!name) return;
-    
     const resultDiv = document.getElementById('invoiceResult');
-    resultDiv.innerHTML = `<div style="text-align:center; padding:20px;"><i class="fas fa-spinner fa-spin"></i> Đang lấy lịch sử đơn hàng của ${name}...</div>`;
+    resultDiv.innerHTML = `<div style="text-align:center; padding:40px;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>`;
 
     try {
         const response = await fetch(scriptURL + "?ten=" + encodeURIComponent(name));
         const data = await response.json();
-        
         if (!data || data.length === 0) {
-            resultDiv.innerHTML = `<p style="text-align:center; color:red;">Không tìm thấy dữ liệu.</p>`;
+            resultDiv.innerHTML = '<p style="text-align:center; color:red;">Không có dữ liệu.</p>';
             return;
         }
 
         let html = `<table><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>SL</th><th>Tổng tiền</th><th>Đã trả</th></tr></thead><tbody>`;
-        let totalAll = 0, paidAll = 0;
-
+        let tAll = 0, pAll = 0;
         data.forEach(row => {
-            const t = Number(row[7].toString().replace(/[^0-9]/g, '')) || 0;
-            const p = Number(row[12].toString().replace(/[^0-9]/g, '')) || 0;
-            
-            html += `<tr><td>${row[0]}</td><td>${row[2]}</td><td>${row[5]}</td><td>${t.toLocaleString()}</td><td>${p.toLocaleString()}</td></tr>`;
-            totalAll += t; 
-            paidAll += p;
+            const t = Number(row[7]?.toString().replace(/[^0-9]/g, '')) || 0;
+            const p = Number(row[12]?.toString().replace(/[^0-9]/g, '')) || 0;
+            html += `<tr><td>${row[0]}</td><td style="font-weight:600;">${row[2]}</td><td>${row[5]}</td><td>${t.toLocaleString()}</td><td style="color:green;">${p.toLocaleString()}</td></tr>`;
+            tAll += t; pAll += p;
         });
 
-        const debt = totalAll - paidAll;
-        html += `</tbody></table><div class="invoice-summary" style="background:#f8f9fa; padding:15px; border-radius:10px; margin-top:15px;">
-            <p>Tổng tích lũy: <b>${totalAll.toLocaleString()} VND</b></p>
-            <p>Đã trả: <b style="color:green">${paidAll.toLocaleString()} VND</b></p><hr>
-            <p class="debt-text" style="color:${debt > 0 ? 'red' : 'green'}">Còn nợ: <b>${debt.toLocaleString()} VND</b></p>
+        const debt = tAll - pAll;
+        html += `</tbody></table><div class="invoice-summary">
+            <p>Tổng chi phí: <span style="float:right;"><b>${tAll.toLocaleString()} VND</b></span></p>
+            <p>Đã thanh toán: <span style="float:right; color:green;"><b>${pAll.toLocaleString()} VND</b></span></p>
+            <hr>
+            <p style="font-size:1.3rem;">Chưa thanh toán: <span style="float:right; color:${debt > 0 ? 'var(--red)' : 'green'};"><b>${debt.toLocaleString()} VND</b></span></p>
         </div>`;
         resultDiv.innerHTML = html;
         resultDiv.scrollIntoView({ behavior: 'smooth' });
-        
-    } catch (error) {
-        resultDiv.innerHTML = `<p style="text-align:center; color:red;">Lỗi kết nối!</p>`;
-    }
+    } catch (e) { resultDiv.innerHTML = 'Lỗi kết nối!'; }
 }
 
 window.onload = loadAllFields;
