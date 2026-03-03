@@ -1,4 +1,5 @@
-const scriptURL = 'https://script.google.com/macros/s/AKfycbzWnTtgsMYvyczB_dxDQBUPw16BWRgC0kqlHadNc5G8eCnf-A7b3Lxgp3gxT7_c7Mc/exec';
+const ADMIN_PASSWORD = "23682578"; 
+const scriptURL = 'https://script.google.com/macros/s/AKfycbzBjeLZtwVdJyPcBl708GtXoucfKR5jS-dXWn_nofJLIG93koGXYWRQzIQX5qiLZmih/exec';
 const allFields = ['hoTen', 'sanPham', 'kichThuoc', 'soLuong', 'donGia', 'ghiChu', 'nguoi', 'ngay', 'tinhTrang', 'thanhToan', 'daTra'];
 
 // --- 1. CHUYỂN TAB ---
@@ -143,15 +144,12 @@ async function searchCustomer() {
     try {
         const response = await fetch(scriptURL + "?ten=" + encodeURIComponent(name) + "&v=" + new Date().getTime());
         currentTableData = await response.json();
-        
         if (!currentTableData || currentTableData.length === 0) {
             resultDiv.innerHTML = '<p style="text-align:center; color:red;">Không có dữ liệu.</p>';
             return;
         }
         renderEditableTable(name);
-    } catch (e) { 
-        resultDiv.innerHTML = 'Lỗi kết nối!'; 
-    }
+    } catch (e) { resultDiv.innerHTML = 'Lỗi kết nối!'; }
 }
 
 function renderEditableTable(name) {
@@ -195,7 +193,6 @@ function renderEditableTable(name) {
         <p class="bill-footer">Thời gian xuất bill: ${new Date().toLocaleTimeString('vi-VN')} ${new Date().toLocaleDateString('vi-VN')}</p>
     </div>`;
 
-    // CỤM NÚT BẤM MỚI: CÓ THÊM NÚT LƯU SHEET
     html += `
     <div style="display: flex; gap: 10px; margin-top: 15px;">
         <button onclick="saveChangesToSheet('${name}')" class="btn" style="background: #2ecc71; flex: 1; margin: 0;">
@@ -205,7 +202,6 @@ function renderEditableTable(name) {
             <i class="fas fa-camera"></i> XUẤT HÓA ĐƠN
         </button>
     </div>`;
-    
     resultDiv.innerHTML = html;
 }
 
@@ -246,34 +242,58 @@ function updateTableSummary() {
 
 // --- HÀM QUAN TRỌNG: LƯU LẠI LÊN GOOGLE SHEET ---
 async function saveChangesToSheet(customerName) {
-    if (!confirm("Cập nhật dữ liệu lên Sheet ngay?")) return;
+    const userPassword = prompt("Vui lòng nhập mật khẩu để lưu thay đổi:");
+    if (userPassword === null) return; 
+    if (userPassword !== ADMIN_PASSWORD) {
+        alert("Mật khẩu không chính xác!");
+        return;
+    }
+    if (!confirm("Xác nhận cập nhật dữ liệu lên Sheet?")) return;
 
     const btn = event.currentTarget;
     const originalText = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...'; 
     btn.disabled = true;
 
+    // SỬA TẠI ĐÂY: Khớp chính xác tên cột với GAS nhận diện
     const updatedList = currentTableData.map(row => ({
-        ngayTao: row[0], sanPham: row[2], kichThuoc: row[3], ghiChu: row[4],
-        soLuong: row[5], donGia: row[6], nguoiPhanCong: row[8],
-        ngayGiao: row[9], tinhTrang: row[10], thanhToan: row[11], daTra: row[12]
+        ngayTao: row[0],
+        sanPham: row[2],
+        kichThuoc: row[3],
+        ghiChu: row[4],
+        soLuong: row[5],
+        donGia: row[6],
+        nguoiPhanCong: row[8],
+        ngayGiao: row[9],
+        tinhTrang: row[10],
+        thanhToan: row[11],
+        daTra: row[12]
     }));
 
-    const payload = { action: "update", hoTen: customerName, list: updatedList };
+    const payload = { 
+        action: "update", 
+        hoTen: customerName, 
+        list: updatedList 
+    };
 
     try {
-        const response = await fetch(scriptURL, {
+        await fetch(scriptURL, {
             method: 'POST',
+            mode: 'no-cors', // Sử dụng no-cors cho Google Script
             body: JSON.stringify(payload)
         });
 
-        await searchCustomer(); 
-        alert("Đã cập nhật xong!");
+        btn.innerHTML = '<i class="fas fa-check"></i> Đang cập nhật...';
+        setTimeout(() => {
+            alert("Đã cập nhật xong!");
+            searchCustomer();
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }, 2000); 
 
     } catch (e) {
-        setTimeout(() => { searchCustomer(); }, 1000);
-    } finally {
-        btn.innerHTML = originalText; 
+        alert("Lỗi khi lưu!");
+        btn.innerHTML = originalText;
         btn.disabled = false;
     }
 }
