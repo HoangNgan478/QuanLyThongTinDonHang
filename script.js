@@ -1,6 +1,90 @@
 const ADMIN_PASSWORD = "23682578"; 
-const scriptURL = 'https://script.google.com/macros/s/AKfycbzBjeLZtwVdJyPcBl708GtXoucfKR5jS-dXWn_nofJLIG93koGXYWRQzIQX5qiLZmih/exec';
+const scriptURL = 'https://script.google.com/macros/s/AKfycbzeRQQL8wLHzVmYp18J3rva9TJ3uVqgDn0sqBhi3PR580q1Kc7k9JFw3sbUzWaCqgKU/exec';
 const allFields = ['hoTen', 'sanPham', 'kichThuoc', 'soLuong', 'donGia', 'ghiChu', 'nguoi', 'ngay', 'tinhTrang', 'thanhToan', 'daTra'];
+
+// 1. Biến cờ để biết khi nào đang gửi dữ liệu lên Sheet
+let isLockSync = false; 
+
+// 2. Chỉnh thời gian quét (Nên để 3-5 giây để tránh bị Google khóa do spam request)
+setInterval(() => {
+    if (!isLockSync) loadMonitorTable();
+}, 5000); 
+
+async function loadMonitorTable() {
+    // Nếu đang lưu thì KHÔNG được tải dữ liệu cũ đè lên
+    if (isLockSync) return;
+
+    const body = document.getElementById('monitorBody');
+    if (!body) return;
+    
+    try {
+        const response = await fetch(scriptURL + "?allData=true&v=" + new Date().getTime());
+        const data = await response.json();
+        
+        if (!data || data.length === 0) {
+            body.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Kho hàng đang trống.</td></tr>';
+            return;
+        }
+
+        let html = "";
+        const allData = [...data].reverse(); 
+        
+        allData.forEach((row) => {
+            const status = row[10] || 'Duyệt';
+            const dateOnly = row[0].includes(' ') ? row[0].split(' ')[0] : row[0];
+
+            html += `<tr>
+                <td class="customer-cell"><b>${row[1]}</b></td>
+                <td>${row[2]}</td>
+                <td><span class="size-tag">${row[3] || '-'}</span></td>
+                <td class="qty-cell">${row[5]}</td>
+                <td>
+                    <select onchange="updateStatusOnly('${row[1]}', '${row[0]}', this.value, this)" 
+                            class="status-select ${getStatusClass(status)}">
+                        <option value="Duyệt" ${status === 'Duyệt' ? 'selected' : ''}>Duyệt</option>
+                        <option value="Đang làm" ${status === 'Đang làm' ? 'selected' : ''}>Đang làm</option>
+                        <option value="Hoàn thành" ${status === 'Hoàn thành' ? 'selected' : ''}>Hoàn thành</option>
+                    </select>
+                </td>
+            </tr>`;
+        });
+        body.innerHTML = html;
+    } catch (e) { 
+        console.error("Lỗi đồng bộ:", e);
+    }
+}
+
+function getStatusClass(status) {
+    if (status === 'Đang làm') return 'status-working';
+    if (status === 'Hoàn thành') return 'status-done';
+    return 'status-pending';
+}
+
+// Cập nhật trạng thái: Đã sửa lỗi giựt
+async function updateStatusOnly(hoTen, ngayTao, newStatus, selectElement) {
+    // BƯỚC 1: Khóa đồng bộ ngay để tránh bị setInterval nạp đè dữ liệu cũ
+    isLockSync = true; 
+
+    // BƯỚC 2: Đổi màu giao diện ngay lập tức để người dùng thấy mượt (UI Optimistic)
+    selectElement.className = `status-select ${getStatusClass(newStatus)}`;
+
+    const payload = { action: "updateStatus", hoTen: hoTen, ngayTao: ngayTao, status: newStatus };
+    
+    try {
+        await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+        
+        // BƯỚC 3: Đợi 2 giây cho Sheet cập nhật xong rồi mới mở khóa cho loadMonitorTable chạy tiếp
+        setTimeout(() => {
+            isLockSync = false;
+        }, 2500);
+        
+    } catch (e) { 
+        alert("Lỗi cập nhật!"); 
+        isLockSync = false;
+    }
+}
+
+window.addEventListener('load', loadMonitorTable);
 
 // --- 1. CHUYỂN TAB ---
 function showTab(tabId, element) {
@@ -198,6 +282,9 @@ function renderEditableTable(name) {
         <button onclick="saveChangesToSheet('${name}')" class="btn" style="background: #2ecc71; flex: 1; margin: 0;">
             <i class="fas fa-save"></i> LƯU THAY ĐỔI
         </button>
+        <button onclick="clearCustomerData('${name}')" class="btn" style="background: #34495e; flex: 1; margin: 0;">
+            <i class="fas fa-check-double"></i> XÁC NHẬN THANH TOÁN & XÓA LỊCH SỬ
+        </button>
         <button onclick="downloadBillImage('${name}')" class="btn btn-download" style="flex: 1; margin: 0;">
             <i class="fas fa-camera"></i> XUẤT HÓA ĐƠN
         </button>
@@ -311,6 +398,50 @@ function downloadBillImage(customerName) {
         link.click();
         btn.innerHTML = originalContent; btn.disabled = false;
     });
+}
+
+async function clearCustomerData(customerName) {
+    // Bước 1: Nhập mật khẩu
+    const userPassword = prompt(`Vui lòng nhập mật khẩu để XÓA VĨNH VIỄN khách hàng "${customerName}":`);
+    
+    if (userPassword === null) return; // Bấm Hủy
+    
+    if (userPassword !== ADMIN_PASSWORD) {
+        alert("Mật khẩu không chính xác! Hành động xóa bị từ chối.");
+        return;
+    }
+
+    // Bước 2: Xác nhận lần cuối
+    const finalConfirm = confirm("Mật khẩu đúng. Bạn có chắc chắn muốn xóa sạch dữ liệu khách này không?");
+    if (!finalConfirm) return;
+
+    const btn = event.currentTarget;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xóa...';
+    btn.disabled = true;
+
+    try {
+        await fetch(scriptURL, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify({ 
+                action: "delete", 
+                hoTen: customerName,
+                pass: userPassword // Gửi pass xuống để GAS kiểm tra thêm 1 lần nữa
+            })
+        });
+
+        alert("Hệ thống đã dọn dẹp xong dữ liệu khách hàng!");
+        document.getElementById('invoiceResult').innerHTML = ""; 
+        fetchCustomerList(); 
+        if (typeof loadMonitorTable === 'function') loadMonitorTable(); 
+
+    } catch (e) {
+        alert("Lỗi kết nối khi xóa!");
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
 }
 
 window.onload = loadAllFields;
