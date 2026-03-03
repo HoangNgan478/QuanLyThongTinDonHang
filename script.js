@@ -1,4 +1,4 @@
-const scriptURL = 'https://script.google.com/macros/s/AKfycbxGrI2YtA1TRZlzVGlfXRcHCEBH5mQCCmssfG_6kfriMlFamknLBRBKveP55GziOPo6/exec';
+const scriptURL = 'https://script.google.com/macros/s/AKfycbwAZCfqjJbAcobP9k0jr3gpTaZm-Wj45X9bJ9C6zkIkWTZhQVJf368DIWiV6VjS2iKK/exec';
 
 const allFields = ['hoTen', 'sanPham', 'kichThuoc', 'soLuong', 'donGia', 'ghiChu', 'nguoi', 'ngay', 'tinhTrang', 'thanhToan', 'daTra'];
 
@@ -162,6 +162,7 @@ function renderCustomerButtons(names) {
     });
 }
 
+// HÀM SỬA ĐỔI: THÊM ĐƠN GIÁ VÀ NÚT TẢI BILL
 async function searchCustomer() {
     const name = document.getElementById('searchName').value.trim();
     if (!name) return;
@@ -176,25 +177,80 @@ async function searchCustomer() {
             return;
         }
 
-        let html = `<table><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>SL</th><th>Tổng tiền</th><th>Đã trả</th></tr></thead><tbody>`;
+        // Tạo vùng chứa Bill để chụp ảnh (Id: billArea)
+        let html = `<div id="billArea" style="background:#fff; padding:20px; border-radius:10px;">`;
+        html += `<h3 style="text-align:center; color:var(--dark); margin-bottom:15px; border-bottom:2px solid var(--red); padding-bottom:10px;">CHI TIẾT ĐƠN HÀNG: ${name.toUpperCase()}</h3>`;
+        html += `<table style="width:100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background:#f8f9fa;">
+                            <th style="padding:10px; border:1px solid #eee;">Ngày</th>
+                            <th style="padding:10px; border:1px solid #eee;">Sản phẩm</th>
+                            <th style="padding:10px; border:1px solid #eee;">Đơn giá</th>
+                            <th style="padding:10px; border:1px solid #eee;">Số lượng</th>
+                            <th style="padding:10px; border:1px solid #eee;">Tổng</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+        
         let tAll = 0, pAll = 0;
         data.forEach(row => {
+            // Theo cấu trúc GAS của Ngân: row[6] là đơn giá, row[7] là tổng tiền, row[12] là đã trả
+            const dg = Number(row[6]?.toString().replace(/[^0-9]/g, '')) || 0;
             const t = Number(row[7]?.toString().replace(/[^0-9]/g, '')) || 0;
             const p = Number(row[12]?.toString().replace(/[^0-9]/g, '')) || 0;
-            html += `<tr><td>${row[0]}</td><td style="font-weight:600;">${row[2]}</td><td>${row[5]}</td><td>${t.toLocaleString()}</td><td style="color:green;">${p.toLocaleString()}</td></tr>`;
+            
+            html += `<tr>
+                <td style="padding:10px; border:1px solid #eee; font-size:11px;">${row[0].split(' ')[0]}</td>
+                <td style="padding:10px; border:1px solid #eee; font-weight:600;">${row[2]}</td>
+                <td style="padding:10px; border:1px solid #eee;">${dg.toLocaleString()}</td>
+                <td style="padding:10px; border:1px solid #eee;">${row[5]}</td>
+                <td style="padding:10px; border:1px solid #eee; font-weight:600;">${t.toLocaleString()}</td>
+            </tr>`;
             tAll += t; pAll += p;
         });
 
         const debt = tAll - pAll;
-        html += `</tbody></table><div class="invoice-summary">
+        html += `</tbody></table>`;
+        
+        html += `<div class="invoice-summary" style="margin-top:20px;">
             <p>Tổng chi phí: <span style="float:right;"><b>${tAll.toLocaleString()} VND</b></span></p>
             <p>Đã thanh toán: <span style="float:right; color:green;"><b>${pAll.toLocaleString()} VND</b></span></p>
             <hr>
-            <p style="font-size:1.3rem;">Chưa thanh toán: <span style="float:right; color:${debt > 0 ? 'var(--red)' : 'green'};"><b>${debt.toLocaleString()} VND</b></span></p>
-        </div>`;
+            <p style="font-size:1.3rem;">Còn nợ: <span style="float:right; color:${debt > 0 ? 'var(--red)' : 'green'};"><b>${debt.toLocaleString()} VND</b></span></p>
+        </div></div>`; // Đóng billArea
+
+        // Thêm nút Tải ảnh
+        html += `<button onclick="downloadBillImage('${name}')" class="btn" style="background:#2980b9; margin-top:15px; width:100%; max-width:none;">
+                    <i class="fas fa-camera"></i> TẢI ẢNH BILL GỬI KHÁCH
+                 </button>`;
+        
         resultDiv.innerHTML = html;
         resultDiv.scrollIntoView({ behavior: 'smooth' });
     } catch (e) { resultDiv.innerHTML = 'Lỗi kết nối!'; }
+}
+
+// HÀM BỔ SUNG: CHỤP ẢNH VÙNG BILL
+function downloadBillImage(customerName) {
+    const element = document.getElementById('billArea');
+    const btn = event.currentTarget;
+    const originalContent = btn.innerHTML;
+    
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang tạo ảnh...';
+    btn.disabled = true;
+
+    html2canvas(element, { 
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff"
+    }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = `Bill_${customerName}_${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+        
+        btn.innerHTML = originalContent;
+        btn.disabled = false;
+    });
 }
 
 window.onload = loadAllFields;
