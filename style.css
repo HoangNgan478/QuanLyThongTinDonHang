@@ -130,3 +130,87 @@ td { padding: 15px; border-bottom: 1px solid #f9f9f9; }
     .row { flex-direction: column; gap: 0; }
     .btn { max-width: 100%; }
 }
+
+/* --- PHẦN TRANG TRÍ BILL TRA CỨU --- */
+#billArea {
+    background: #ffffff;
+    padding: 25px;
+    border-radius: 15px;
+    border: 1px solid #eeeeee;
+    color: var(--dark);
+}
+
+#billArea h3 {
+    text-align: left;
+    margin-bottom: 15px;
+    border-bottom: 2px solid var(--red);
+    padding-bottom: 10px;
+    text-transform: uppercase;
+}
+
+.bill-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.bill-table th {
+    background: #f8f9fa;
+    text-align: left;
+    padding: 10px;
+    border: 1px solid #dddddd;
+    color: var(--dark);
+}
+
+.bill-table td {
+    padding: 10px;
+    border: 1px solid #eeeeee;
+    text-align: left;
+}
+
+.bill-table td.bold {
+    font-weight: 600;
+}
+
+.bill-table td.date {
+    font-size: 10px;
+}
+
+.bill-table td.paid {
+    color: green;
+}
+
+.bill-summary {
+    margin-top: 20px;
+    font-size: 14px;
+    border-top: 2px solid #eeeeee;
+    padding-top: 15px;
+    text-align: right; /* Đẩy toàn bộ nội dung sang bên phải */
+}
+
+.bill-summary p {
+    margin: 8px 0;
+}
+
+.bill-summary .total-row {
+    font-size: 1.4rem; /* Làm to số tiền còn nợ */
+    margin: 12px 0;
+    font-weight: bold;
+}
+
+.bill-footer {
+    font-size: 11px;
+    color: #999999;
+    margin-top: 20px;
+    font-style: italic;
+    text-align: center; /* Đưa dòng thời gian ra giữa */
+    border-top: 1px dashed #eee; /* Thêm đường kẻ đứt nhẹ cho đẹp */
+    padding-top: 10px;
+}
+
+.btn-download {
+    background: #2980b9;
+    margin-top: 15px;
+    width: 100%;
+    max-width: none !important; /* Ghi đè giới hạn 400px của btn chung */
+}
