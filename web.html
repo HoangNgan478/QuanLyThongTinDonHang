@@ -67,6 +67,25 @@
 
                 <button type="submit" class="btn btn-red">LƯU ĐƠN & CHỐT TRẠNG THÁI</button>
             </form>
+
+            <div class="monitor-section" style="margin-top: 30px;">
+                <h3 style="text-align: center; color: var(--red); margin-bottom: 15px;">TRẠNG THÁI ĐƠN HÀNG TỔNG QUÁT</h3>
+                <div style="max-height: 500px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px;">
+                    <table class="bill-table" id="monitorTable">
+                        <thead style="position: sticky; top: 0; background: #f8f9fa; z-index: 1;">
+                            <tr>
+                                <th>Khách hàng</th>
+                                <th>Sản phẩm</th>
+                                <th>Kích thước</th>
+                                <th>Số lượng</th>
+                                <th>Trạng thái</th>
+                            </tr>
+                        </thead>
+                        <tbody id="monitorBody">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <div id="content-tab2" class="tab-content fade-in">
