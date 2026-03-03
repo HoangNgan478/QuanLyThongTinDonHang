@@ -1,4 +1,4 @@
-const scriptURL = 'https://script.google.com/macros/s/AKfycbzmJWxMQYMVEYGMLlMetbr7ufWttpNfaeOjgM4C7G_tOGFp8ntUh5RCLCf_XfJ0vhnL/exec';
+const scriptURL = 'https://script.google.com/macros/s/AKfycbzWnTtgsMYvyczB_dxDQBUPw16BWRgC0kqlHadNc5G8eCnf-A7b3Lxgp3gxT7_c7Mc/exec';
 const allFields = ['hoTen', 'sanPham', 'kichThuoc', 'soLuong', 'donGia', 'ghiChu', 'nguoi', 'ngay', 'tinhTrang', 'thanhToan', 'daTra'];
 
 // --- 1. CHUYỂN TAB ---
@@ -141,14 +141,17 @@ async function searchCustomer() {
     resultDiv.innerHTML = `<div style="text-align:center; padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:var(--red)"></i></div>`;
 
     try {
-        const response = await fetch(scriptURL + "?ten=" + encodeURIComponent(name));
+        const response = await fetch(scriptURL + "?ten=" + encodeURIComponent(name) + "&v=" + new Date().getTime());
         currentTableData = await response.json();
+        
         if (!currentTableData || currentTableData.length === 0) {
             resultDiv.innerHTML = '<p style="text-align:center; color:red;">Không có dữ liệu.</p>';
             return;
         }
         renderEditableTable(name);
-    } catch (e) { resultDiv.innerHTML = 'Lỗi kết nối!'; }
+    } catch (e) { 
+        resultDiv.innerHTML = 'Lỗi kết nối!'; 
+    }
 }
 
 function renderEditableTable(name) {
@@ -196,10 +199,10 @@ function renderEditableTable(name) {
     html += `
     <div style="display: flex; gap: 10px; margin-top: 15px;">
         <button onclick="saveChangesToSheet('${name}')" class="btn" style="background: #2ecc71; flex: 1; margin: 0;">
-            <i class="fas fa-save"></i> LƯU VÀO SHEET
+            <i class="fas fa-save"></i> LƯU THAY ĐỔI
         </button>
         <button onclick="downloadBillImage('${name}')" class="btn btn-download" style="flex: 1; margin: 0;">
-            <i class="fas fa-camera"></i> TẢI ẢNH BILL
+            <i class="fas fa-camera"></i> XUẤT HÓA ĐƠN
         </button>
     </div>`;
     
@@ -243,45 +246,35 @@ function updateTableSummary() {
 
 // --- HÀM QUAN TRỌNG: LƯU LẠI LÊN GOOGLE SHEET ---
 async function saveChangesToSheet(customerName) {
-    if (!confirm("Dữ liệu cũ sẽ bị xóa và thay bằng bản này, bạn chắc chắn chứ?")) return;
+    if (!confirm("Cập nhật dữ liệu lên Sheet ngay?")) return;
 
     const btn = event.currentTarget;
     const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang đồng bộ...'; btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...'; 
+    btn.disabled = true;
 
-    // Chuẩn bị danh sách gửi đi (khớp với cấu trúc GAS mới)
     const updatedList = currentTableData.map(row => ({
-        ngayTao: row[0],
-        sanPham: row[2],
-        kichThuoc: row[3],
-        ghiChu: row[4],
-        soLuong: row[5],
-        donGia: row[6],
-        nguoiPhanCong: row[8],
-        ngayGiao: row[9],
-        tinhTrang: row[10],
-        thanhToan: row[11],
-        daTra: row[12]
+        ngayTao: row[0], sanPham: row[2], kichThuoc: row[3], ghiChu: row[4],
+        soLuong: row[5], donGia: row[6], nguoiPhanCong: row[8],
+        ngayGiao: row[9], tinhTrang: row[10], thanhToan: row[11], daTra: row[12]
     }));
 
-    const payload = {
-        action: "update",
-        hoTen: customerName,
-        list: updatedList
-    };
+    const payload = { action: "update", hoTen: customerName, list: updatedList };
 
     try {
-        await fetch(scriptURL, {
+        const response = await fetch(scriptURL, {
             method: 'POST',
-            mode: 'no-cors',
             body: JSON.stringify(payload)
         });
-        alert("Đã cập nhật dữ liệu lên Google Sheet thành công!");
-        searchCustomer(); // Load lại bảng để đảm bảo đồng bộ
+
+        await searchCustomer(); 
+        alert("Đã cập nhật xong!");
+
     } catch (e) {
-        alert("Lỗi khi lưu: " + e.message);
+        setTimeout(() => { searchCustomer(); }, 1000);
     } finally {
-        btn.innerHTML = originalText; btn.disabled = false;
+        btn.innerHTML = originalText; 
+        btn.disabled = false;
     }
 }
 
