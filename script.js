@@ -184,9 +184,9 @@ async function searchCustomer() {
                         <tr>
                             <th>Ngày</th>
                             <th>Sản phẩm</th>
-                            <th>K.Thước</th>
+                            <th>Kích thước</th>
                             <th>Đơn giá</th>
-                            <th>SL</th>
+                            <th>Số lượng</th>
                             <th>Đã trả</th>
                             <th>Tổng</th>
                         </tr>
