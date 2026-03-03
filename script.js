@@ -162,12 +162,11 @@ function renderCustomerButtons(names) {
     });
 }
 
-// HÀM SỬA ĐỔI: THÊM ĐƠN GIÁ VÀ NÚT TẢI BILL
 async function searchCustomer() {
     const name = document.getElementById('searchName').value.trim();
     if (!name) return;
     const resultDiv = document.getElementById('invoiceResult');
-    resultDiv.innerHTML = `<div style="text-align:center; padding:40px;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>`;
+    resultDiv.innerHTML = `<div style="text-align:center; padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:var(--red)"></i></div>`;
 
     try {
         const response = await fetch(scriptURL + "?ten=" + encodeURIComponent(name));
@@ -177,34 +176,37 @@ async function searchCustomer() {
             return;
         }
 
-        // Tạo vùng chứa Bill để chụp ảnh (Id: billArea)
-        let html = `<div id="billArea" style="background:#fff; padding:20px; border-radius:10px;">`;
-        html += `<h3 style="text-align:center; color:var(--dark); margin-bottom:15px; border-bottom:2px solid var(--red); padding-bottom:10px;">CHI TIẾT ĐƠN HÀNG: ${name.toUpperCase()}</h3>`;
-        html += `<table style="width:100%; border-collapse: collapse;">
+        // JS chỉ tạo khung HTML, class CSS sẽ lo phần làm đẹp
+        let html = `<div id="billArea">`;
+        html += `<h3>Lịch sử đơn hàng: ${name}</h3>`;
+        html += `<table class="bill-table">
                     <thead>
-                        <tr style="background:#f8f9fa;">
-                            <th style="padding:10px; border:1px solid #eee;">Ngày</th>
-                            <th style="padding:10px; border:1px solid #eee;">Sản phẩm</th>
-                            <th style="padding:10px; border:1px solid #eee;">Đơn giá</th>
-                            <th style="padding:10px; border:1px solid #eee;">Số lượng</th>
-                            <th style="padding:10px; border:1px solid #eee;">Tổng</th>
+                        <tr>
+                            <th>Ngày</th>
+                            <th>Sản phẩm</th>
+                            <th>K.Thước</th>
+                            <th>Đơn giá</th>
+                            <th>SL</th>
+                            <th>Đã trả</th>
+                            <th>Tổng</th>
                         </tr>
                     </thead>
                     <tbody>`;
         
         let tAll = 0, pAll = 0;
         data.forEach(row => {
-            // Theo cấu trúc GAS của Ngân: row[6] là đơn giá, row[7] là tổng tiền, row[12] là đã trả
             const dg = Number(row[6]?.toString().replace(/[^0-9]/g, '')) || 0;
             const t = Number(row[7]?.toString().replace(/[^0-9]/g, '')) || 0;
             const p = Number(row[12]?.toString().replace(/[^0-9]/g, '')) || 0;
             
             html += `<tr>
-                <td style="padding:10px; border:1px solid #eee; font-size:11px;">${row[0].split(' ')[0]}</td>
-                <td style="padding:10px; border:1px solid #eee; font-weight:600;">${row[2]}</td>
-                <td style="padding:10px; border:1px solid #eee;">${dg.toLocaleString()}</td>
-                <td style="padding:10px; border:1px solid #eee;">${row[5]}</td>
-                <td style="padding:10px; border:1px solid #eee; font-weight:600;">${t.toLocaleString()}</td>
+                <td class="date">${row[0].split(' ')[0]}</td>
+                <td class="bold">${row[2]}</td>
+                <td>${row[3] || "-"}</td>
+                <td>${dg.toLocaleString()}</td>
+                <td>${row[5]}</td>
+                <td class="paid">${p > 0 ? p.toLocaleString() : "-"}</td>
+                <td class="bold">${t.toLocaleString()}</td>
             </tr>`;
             tAll += t; pAll += p;
         });
@@ -212,15 +214,16 @@ async function searchCustomer() {
         const debt = tAll - pAll;
         html += `</tbody></table>`;
         
-        html += `<div class="invoice-summary" style="margin-top:20px;">
-            <p>Tổng chi phí: <span style="float:right;"><b>${tAll.toLocaleString()} VND</b></span></p>
-            <p>Đã thanh toán: <span style="float:right; color:green;"><b>${pAll.toLocaleString()} VND</b></span></p>
-            <hr>
-            <p style="font-size:1.3rem;">Còn nợ: <span style="float:right; color:${debt > 0 ? 'var(--red)' : 'green'};"><b>${debt.toLocaleString()} VND</b></span></p>
-        </div></div>`; // Đóng billArea
+        html += `<div class="bill-summary">
+            <p>Tổng cộng: <b>${tAll.toLocaleString()} VND</b></p>
+            <p class="paid">Đã thanh toán: <b>${pAll.toLocaleString()} VND</b></p>
+            <p class="total-row" style="color:${debt > 0 ? 'var(--red)' : 'green'}">
+                Còn nợ: ${debt.toLocaleString()} VND
+            </p>
+            <p class="bill-footer">Thời gian xuất bill: ${new Date().toLocaleString('vi-VN')}</p>
+        </div></div>`;
 
-        // Thêm nút Tải ảnh
-        html += `<button onclick="downloadBillImage('${name}')" class="btn" style="background:#2980b9; margin-top:15px; width:100%; max-width:none;">
+        html += `<button onclick="downloadBillImage('${name}')" class="btn btn-download">
                     <i class="fas fa-camera"></i> TẢI ẢNH BILL GỬI KHÁCH
                  </button>`;
         
