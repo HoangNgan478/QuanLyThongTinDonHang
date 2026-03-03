@@ -86,6 +86,82 @@ body {
 .btn-red { background: var(--red); }
 .btn-red:hover { background: #d62828; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(230, 57, 70, 0.2); }
 
+/* --- MONITOR TABLE STYLING --- */
+.monitor-section {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+}
+
+#monitorTable {
+    border-collapse: separate;
+    border-spacing: 0 8px; /* Tạo khoảng cách giữa các dòng */
+    width: 100%;
+}
+
+#monitorTable thead th {
+    background: #f8f9fa;
+    color: #6c757d;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    padding: 12px;
+    border: none;
+}
+
+#monitorTable tbody tr {
+    background: #fff;
+    transition: transform 0.2s;
+}
+
+#monitorTable tbody td {
+    padding: 15px 12px;
+    border-top: 1px solid #f1f1f1;
+    border-bottom: 1px solid #f1f1f1;
+    font-size: 14px;
+}
+
+#monitorTable tbody td:first-child { border-left: 1px solid #f1f1f1; border-radius: 8px 0 0 8px; }
+#monitorTable tbody td:last-child { border-right: 1px solid #f1f1f1; border-radius: 0 8px 8px 0; }
+
+/* Các ô đặc biệt */
+.date-cell { color: #888; font-size: 12px !important; }
+.customer-cell { color: var(--red); }
+.size-tag {
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+.qty-cell { font-weight: bold; color: #333; }
+
+/* Trạng thái Select */
+.status-select {
+    border: none;
+    padding: 6px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+    width: 110px;
+}
+
+.status-pending { background: #e1f0ff; color: #007bff; }
+.status-working { background: #fff4e5; color: #ff9800; }
+.status-done { background: #d4f8e8; color: #27ae60; }
+
+/* Hiệu ứng scroll mượt */
+.monitor-wrapper {
+    max-height: 600px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--red) #f0f0f0;
+}
+
+
 /* --- TAB 2: TRA CỨU & DANH SÁCH --- */
 .search-card {
     background: var(--white); padding: 30px; border-radius: 20px;
