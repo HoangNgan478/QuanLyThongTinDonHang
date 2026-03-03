@@ -7,12 +7,14 @@
 }
 
 body {
-    margin: 0; background-color: var(--light);
+    margin: 0;
+    background-color: var(--light);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    color: var(--dark); line-height: 1.6;
+    color: var(--dark);
+    line-height: 1.6;
 }
 
-/* Navbar */
+/* --- NAVBAR --- */
 .navbar {
     display: flex; justify-content: space-between; align-items: center;
     background: var(--white); height: 70px; position: sticky; top: 0;
@@ -32,10 +34,10 @@ body {
 .nav-logo { flex: 0 0 120px; display: flex; justify-content: center; }
 .nav-logo img { height: 45px; object-fit: contain; }
 
-/* Layout Chung */
+/* --- LAYOUT CHUNG --- */
 .container { max-width: 1050px; margin: 20px auto; padding: 0 20px; }
 
-/* Tab 1: Form Card */
+/* --- TAB 1: FORM NHẬP LIỆU --- */
 .single-form-card {
     background: var(--white); padding: 30px 50px; border-radius: 15px;
     box-shadow: 0 10px 40px rgba(0,0,0,0.06);
@@ -46,7 +48,6 @@ body {
     border-left: 5px solid var(--red); padding-left: 15px;
 }
 
-/* Row & Input Boxes */
 .row { display: flex; gap: 30px; margin-bottom: 5px; }
 .row .input-box { flex: 1; }
 
@@ -61,7 +62,7 @@ body {
     transition: 0.3s; color: #aaa;
 }
 
-/* ĐỒNG NHẤT MÀU ĐỎ CHO LABEL KHI ACTIVE */
+/* Hiệu ứng nhãn nổi màu đỏ đồng nhất */
 .input-box input:focus ~ label, 
 .input-box input:valid ~ label,
 .input-box select:focus ~ label,
@@ -85,11 +86,11 @@ body {
 .btn-red { background: var(--red); }
 .btn-red:hover { background: #d62828; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(230, 57, 70, 0.2); }
 
-/* Tab 2: Card Sang Xịn */
-.search-section { max-width: 750px; margin: 30px auto; }
+/* --- TAB 2: TRA CỨU & DANH SÁCH --- */
 .search-card {
     background: var(--white); padding: 30px; border-radius: 20px;
     box-shadow: 0 15px 35px rgba(0,0,0,0.08); text-align: center;
+    max-width: 750px; margin: 0 auto 30px auto;
 }
 
 .customer-list-container {
@@ -113,14 +114,55 @@ body {
 .search-bar input { flex: 1; border: none; padding: 12px 20px; outline: none; font-size: 15px; }
 .search-bar button { background: var(--red); color: white; border: none; padding: 0 25px; cursor: pointer; }
 
-/* Bảng và Kết quả */
-.invoice-wrapper { max-width: 1000px; margin: 30px auto; background: var(--white); padding: 30px; border-radius: 15px; }
-table { width: 100%; border-collapse: collapse; }
-th { background: #fcfcfc; padding: 15px; text-align: left; border-bottom: 2px solid #f0f0f0; }
-td { padding: 15px; border-bottom: 1px solid #f9f9f9; }
-.invoice-summary { background: #f8f9fa; padding: 20px; border-radius: 12px; margin-top: 25px; border-left: 6px solid var(--red); }
+/* --- PHẦN BILL TRA CỨU & SỬA TẠI CHỖ --- */
+#billArea {
+    background: #ffffff; padding: 25px; border-radius: 15px;
+    border: 1px solid #eeeeee; color: var(--dark);
+}
 
-/* Tab Visibility */
+#billArea h3 {
+    text-align: left; margin-bottom: 15px;
+    border-bottom: 2px solid var(--red); padding-bottom: 10px;
+    text-transform: uppercase;
+}
+
+.bill-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.bill-table th { background: #f8f9fa; text-align: left; padding: 10px; border: 1px solid #dddddd; }
+.bill-table td { padding: 10px; border: 1px solid #eeeeee; text-align: left; }
+
+/* Ô nhập liệu "tàng hình" trong bảng Bill */
+.bill-input {
+    width: 100%; border: none; background: transparent;
+    font-family: inherit; font-size: inherit; color: inherit;
+    padding: 2px 0; outline: none;
+}
+.bill-input:focus { background: #fff8f8; border-bottom: 1px solid var(--red); }
+.bill-input.bold { font-weight: 600; }
+.bill-input.paid { color: green; }
+
+/* Tổng kết Bill */
+.bill-summary {
+    margin-top: 20px; font-size: 14px;
+    border-top: 2px solid #eeeeee; padding-top: 15px;
+    text-align: right; /* Tài chính dồn sang phải */
+}
+.bill-summary p { margin: 8px 0; }
+.bill-summary .total-row {
+    font-size: 1.4rem; margin: 12px 0; font-weight: bold;
+}
+
+.bill-footer {
+    font-size: 11px; color: #999; margin-top: 20px;
+    font-style: italic; text-align: center; /* Thời gian ra giữa */
+    border-top: 1px dashed #eee; padding-top: 10px;
+}
+
+.btn-download {
+    background: #2980b9; margin-top: 15px;
+    width: 100%; max-width: none !important;
+}
+
+/* --- HIỆU ỨNG & MOBILE --- */
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 .fade-in { animation: fadeIn 0.4s ease-out; }
@@ -131,86 +173,61 @@ td { padding: 15px; border-bottom: 1px solid #f9f9f9; }
     .btn { max-width: 100%; }
 }
 
-/* --- PHẦN TRANG TRÍ BILL TRA CỨU --- */
-#billArea {
-    background: #ffffff;
-    padding: 25px;
-    border-radius: 15px;
-    border: 1px solid #eeeeee;
-    color: var(--dark);
-}
+/* --- TỐI ƯU GIAO DIỆN CHO ĐIỆN THOẠI (MOBILE) --- */
+@media (max-width: 768px) {
+    /* 1. Thu nhỏ Padding của Card chính để có thêm không gian */
+    .single-form-card { padding: 20px 15px; }
+    .container { padding: 0 10px; }
+    .row { flex-direction: column; gap: 0; }
+    
+    /* 2. Chuyển bảng Tab 2 thành dạng Thẻ (Card) */
+    .bill-table thead { display: none; } /* Ẩn tiêu đề bảng */
+    
+    .bill-table, .bill-table tbody, .bill-table tr, .bill-table td {
+        display: block;
+        width: 100%;
+    }
 
-#billArea h3 {
-    text-align: left;
-    margin-bottom: 15px;
-    border-bottom: 2px solid var(--red);
-    padding-bottom: 10px;
-    text-transform: uppercase;
-}
+    .bill-table tr {
+        margin-bottom: 15px;
+        border: 1px solid #eee;
+        border-radius: 10px;
+        padding: 10px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+    }
 
-.bill-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
-}
+    .bill-table td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: right;
+        padding: 8px 5px;
+        border-bottom: 1px dashed #f0f0f0;
+    }
 
-.bill-table th {
-    background: #f8f9fa;
-    text-align: left;
-    padding: 10px;
-    border: 1px solid #dddddd;
-    color: var(--dark);
-}
+    .bill-table td:last-child { border-bottom: none; }
 
-.bill-table td {
-    padding: 10px;
-    border: 1px solid #eeeeee;
-    text-align: left;
-}
+    /* Tự động thêm nhãn (label) trước mỗi nội dung */
+    .bill-table td::before {
+        content: attr(data-label); /* Lấy tên cột từ HTML */
+        font-weight: bold;
+        color: var(--dark);
+        text-align: left;
+        flex: 1;
+    }
 
-.bill-table td.bold {
-    font-weight: 600;
-}
+    .bill-input {
+        width: 60% !important; /* Đẩy ô nhập liệu sang phải */
+        text-align: right;
+    }
 
-.bill-table td.date {
-    font-size: 10px;
-}
-
-.bill-table td.paid {
-    color: green;
-}
-
-.bill-summary {
-    margin-top: 20px;
-    font-size: 14px;
-    border-top: 2px solid #eeeeee;
-    padding-top: 15px;
-    text-align: right; /* Đẩy toàn bộ nội dung sang bên phải */
-}
-
-.bill-summary p {
-    margin: 8px 0;
-}
-
-.bill-summary .total-row {
-    font-size: 1.4rem; /* Làm to số tiền còn nợ */
-    margin: 12px 0;
-    font-weight: bold;
-}
-
-.bill-footer {
-    font-size: 11px;
-    color: #999999;
-    margin-top: 20px;
-    font-style: italic;
-    text-align: center; /* Đưa dòng thời gian ra giữa */
-    border-top: 1px dashed #eee; /* Thêm đường kẻ đứt nhẹ cho đẹp */
-    padding-top: 10px;
-}
-
-.btn-download {
-    background: #2980b9;
-    margin-top: 15px;
-    width: 100%;
-    max-width: none !important; /* Ghi đè giới hạn 400px của btn chung */
+    /* 3. Chỉnh lại phần tổng kết Bill */
+    .bill-summary { text-align: left; }
+    .bill-summary p { display: flex; justify-content: space-between; }
+    
+    /* 4. Nút bấm Mobile */
+    .btn { max-width: 100%; font-size: 14px; padding: 14px; }
+    .navbar { height: 60px; }
+    .nav-item { font-size: 12px; }
+    .nav-logo img { height: 35px; }
 }
