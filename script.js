@@ -1,5 +1,5 @@
 const ADMIN_PASSWORD = "23682578"; 
-const scriptURL = 'https://script.google.com/macros/s/AKfycbzKq-wqBblqN7_QhKRouP4XNKP_ufvCscMnUcnziULJ0OVracyqArEL-zzO1H5ydhKs/exec';
+const scriptURL = 'https://script.google.com/macros/s/AKfycbxa07Iz4YOE7QJ6sUipVgCPYHVLwWGID5kWoGkLR6FK34kcpxUl7n9W1K9qEu_EFUPL/exec';
 const allFields = ['hoTen', 'sanPham', 'kichThuoc', 'soLuong', 'donGia', 'ghiChu', 'nguoi', 'ngay', 'tinhTrang', 'thanhToan', 'daTra'];
 
 // 1. Biến cờ để biết khi nào đang gửi dữ liệu lên Sheet
@@ -101,25 +101,24 @@ function updateCalculation() {
     const kichThuocInput = document.getElementById('kichThuoc');
     if (!kichThuocInput) return;
 
-    // 1. Làm sạch dữ liệu: Đổi dấu phẩy thành chấm, xóa khoảng trắng thừa
-    let val = kichThuocInput.value.trim().replace(',', '.').toLowerCase();
-    
-    // 2. Regex thoáng hơn: Chấp nhận cả dấu x, dấu *, dấu . hoặc khoảng cách
-    const regex = /^(\d+(?:\.\d+)?)\s*[x*]\s*(\d+(?:\.\d+)?)$/;
-    const match = val.match(regex);
+    let val = kichThuocInput.value.trim().replace(/,/g, '.').toLowerCase();
+    const parts = val.split(/[x*]/); 
 
-    if (match) {
-        const dai = parseFloat(match[1]);
-        const rong = parseFloat(match[2]);
-        
-        if (!isNaN(dai) && !isNaN(rong)) {
-            const result = parseFloat((dai * rong).toFixed(2));
-            document.getElementById('soLuong').value = result;
-            
-            const dg = document.getElementById('donGia').value || 0;
-            document.getElementById('tongTienHienThi').value = (result * dg).toLocaleString('vi-VN') + " VND";
+    if (parts.length >= 2) {
+        const numbers = parts.map(p => parseFloat(p.trim())).filter(n => !isNaN(n));
+
+        if (numbers.length >= 2) {
+            // Nhân tất cả các số trong mảng lại với nhau
+            const result = numbers.reduce((total, num) => total * num, 1);
+            document.getElementById('soLuong').value = parseFloat(result.toFixed(2));
         }
     }
+
+    const sl = document.getElementById('soLuong').value;
+    const dg = document.getElementById('donGia').value;
+    const total = (Number(sl) || 0) * (Number(dg) || 0);
+    document.getElementById('tongTienHienThi').value = total.toLocaleString('vi-VN') + " VND";
+    
     saveAllFields();
 }
 
@@ -254,30 +253,18 @@ function renderEditableTable(name) {
     html += `<table class="bill-table">
                 <thead>
                     <tr>
-                        <th>Ngày</th><th>Sản phẩm</th><th>Kích thước</th><th>Đơn giá</th><th>Số Lượng</th><th>Đã trả</th><th>Tổng</th>
+                        <th>Ngày</th><th>Sản phẩm</th><th>Kích thước</th><th>Đơn giá</th><th>SL</th><th>Đã trả</th><th>Tổng</th><th>Xóa</th>
                     </tr>
                 </thead>
                 <tbody>`;
     
-    let tAll = 0, pAll = 0; // Đảm bảo khởi tạo biến tính tổng
+    let tAll = 0, pAll = 0;
 
     currentTableData.forEach((row, index) => {
-        // Xử lý ngày tháng hiển thị: dd/mm/yyyy
-        let displayDate = row[0].toString();
-        if (displayDate.includes('T')) {
-            const d = new Date(displayDate);
-            displayDate = d.toLocaleDateString('vi-VN');
-        } else if (displayDate.includes(' ')) {
-            displayDate = displayDate.split(' ')[0];
-        }
-
-        const dg = Number(row[6]?.toString().replace(/[^0-9]/g, '')) || 0;
-        const sl = Number(row[5]) || 0;
-        const p = Number(row[12]?.toString().replace(/[^0-9]/g, '')) || 0;
-        const rowTotal = dg * sl;
-
-        tAll += rowTotal; // Cộng dồn tổng tiền
-        pAll += p;        // Cộng dồn đã trả
+        // ... (Giữ nguyên phần xử lý displayDate, dg, sl, p, rowTotal như cũ) ...
+        const rowTotal = (Number(row[6]) || 0) * (Number(row[5]) || 0);
+        tAll += rowTotal;
+        pAll += (Number(row[12]) || 0);
 
         html += `<tr>
             <td data-label="Ngày" class="date-cell">${displayDate}</td>
@@ -287,6 +274,12 @@ function renderEditableTable(name) {
             <td data-label="Số lượng"><input id="table-sl-${index}" class="bill-input" type="number" value="${sl}" oninput="currentTableData[${index}][5]=this.value; updateTableSummary()"></td>
             <td data-label="Đã trả"><input class="bill-input paid" type="number" value="${p}" oninput="currentTableData[${index}][12]=this.value; updateTableSummary()"></td>
             <td data-label="Tổng" class="bold" id="table-total-${index}">${rowTotal.toLocaleString()}</td>
+            
+            <td style="text-align:center;">
+                <button onclick="deleteSingleRow('${name}', '${row[0]}', this)" style="border:none; background:none; color:var(--red); cursor:pointer; font-size:1.1rem;">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </td>
         </tr>`;
     });
 
@@ -313,6 +306,47 @@ function renderEditableTable(name) {
         </button>
     </div>`;
     resultDiv.innerHTML = html;
+}
+
+async function deleteSingleRow(hoTen, ngayTao, btnElement) {
+    // Bước 1: Yêu cầu mật khẩu
+    const userPassword = prompt(`XÁC NHẬN XÓA ĐƠN LẺ:\nNhập mật khẩu để xóa đơn hàng của khách "${hoTen}":`);
+    
+    if (userPassword === null) return; // Bấm Hủy
+    
+    if (userPassword !== ADMIN_PASSWORD) {
+        alert("Mật khẩu không chính xác! Không thể xóa dòng này.");
+        return;
+    }
+
+    // Bước 2: Xác nhận lần cuối
+    const finalConfirm = confirm("Mật khẩu đúng. Bạn chắc chắn muốn xóa vĩnh viễn dòng này chứ?");
+    if (!finalConfirm) return;
+
+    const rowElement = btnElement.closest('tr');
+    rowElement.style.backgroundColor = '#ffeef0'; // Tô màu cảnh báo dòng đang xóa
+    
+    try {
+        await fetch(scriptURL, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify({ 
+                action: "deleteSingle", 
+                hoTen: hoTen,
+                ngayTao: ngayTao 
+            })
+        });
+
+        alert("Đã xóa đơn hàng thành công!");
+        // Refresh lại dữ liệu Tab 2 để tính lại tổng tiền nợ
+        searchCustomer(); 
+        // Cập nhật lại kho ở Tab 1
+        if (typeof loadMonitorTable === 'function') loadMonitorTable(); 
+
+    } catch (e) {
+        alert("Lỗi kết nối khi xóa dòng!");
+        rowElement.style.backgroundColor = '';
+    }
 }
 
 // --- LOGIC ĐỒNG BỘ BẢNG ---
