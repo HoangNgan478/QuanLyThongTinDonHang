@@ -151,7 +151,6 @@ document.getElementById('mainForm').addEventListener('submit', async (e) => {
         hoTen: document.getElementById('hoTen').value,
         sanPham: document.getElementById('sanPham').value,
         kichThuoc: document.getElementById('kichThuoc').value,
-        // ĐẢM BẢO GỬI SỐ THỰC
         soLuong: parseFloat(document.getElementById('soLuong').value) || 0,
         donGia: parseFloat(document.getElementById('donGia').value) || 0,
         ghiChu: document.getElementById('ghiChu').value,
@@ -398,4 +397,5 @@ allFields.forEach(id => {
         if(['kichThuoc', 'soLuong', 'donGia'].includes(id)) updateCalculation();
         saveAllFields();
     });
+
 });
