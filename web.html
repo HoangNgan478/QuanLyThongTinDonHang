@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống Quản lý Đơn hàng</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-item left active-nav" onclick="showTab('tab1', this)">
+            <i class="fas fa-file-invoice"></i> THÔNG TIN ĐƠN HÀNG
+        </div>
+        <div class="nav-logo">
+            <img src="logo.png" alt="Logo">
+        </div>
+        <div class="nav-item right" onclick="showTab('tab2', this)">
+            <i class="fas fa-user-check"></i> CHI TIẾT KHÁCH HÀNG
+        </div>
+    </nav>
+
+    <main class="container">
+        <div id="content-tab1" class="tab-content active fade-in">
+            <form id="mainForm" class="single-form-card">
+                <h2>Thông tin & Trạng thái đơn hàng</h2>
+
+                <div class="row">
+                    <div class="input-box"><input type="text" id="hoTen" required><label>Họ tên khách hàng</label></div>
+                    <div class="input-box"><input type="text" id="sanPham" required><label>Sản phẩm</label></div>
+                </div>
+
+                <div class="row">
+                    <div class="input-box"><input type="text" id="kichThuoc"><label>Kích thước</label></div>
+                    <div class="input-box"><input type="number" id="soLuong" step="any" required><label>Số lượng</label></div>
+                    <div class="input-box"><input type="number" id="donGia" required><label>Đơn giá</label></div>
+                </div>
+
+                <div class="row">
+                    <div class="input-box total-field"><input type="text" id="tongTienHienThi" readonly><label class="static">Tổng tiền</label></div>
+                    <div class="input-box"><input type="text" id="ghiChu"><label>Ghi chú</label></div>
+                </div>
+
+                <div class="row">
+                    <div class="input-box"><input type="text" id="nguoi"><label>Người phụ trách</label></div>
+                    <div class="input-box"><input type="date" id="ngay"><label class="static">Ngày giao</label></div>
+                </div>
+
+                <div class="row">
+                    <div class="input-box">
+                        <select id="tinhTrang">
+                            <option value="Duyệt">Duyệt</option>
+                            <option value="Đang làm">Đang làm</option>
+                            <option value="Hoàn thành">Hoàn thành</option>
+                        </select>
+                        <label class="static">Trạng thái</label>
+                    </div>
+                    <div class="input-box">
+                        <select id="thanhToan">
+                            <option value="Chưa thanh toán">Chưa thanh toán</option>
+                            <option value="Đã thanh toán">Đã thanh toán</option>
+                        </select>
+                        <label class="static">Thanh toán</label>
+                    </div>
+                    <div class="input-box"><input type="number" id="daTra" value="0"><label>Số tiền đã trả</label></div>
+                </div>
+
+                <button type="submit" class="btn btn-red">LƯU ĐƠN & CHỐT TRẠNG THÁI</button>
+            </form>
+
+            <div class="monitor-section" style="margin-top: 30px;">
+                <h3 style="text-align: center; color: var(--red); margin-bottom: 15px;">TRẠNG THÁI ĐƠN HÀNG TỔNG QUÁT</h3>
+                <div style="max-height: 500px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px;">
+                    <table class="bill-table" id="monitorTable">
+                        <thead style="position: sticky; top: 0; background: #f8f9fa; z-index: 1;">
+                            <tr>
+                                <th>Khách hàng</th>
+                                <th>Sản phẩm</th>
+                                <th>Kích thước</th>
+                                <th>Số lượng</th>
+                                <th>Trạng thái</th>
+                            </tr>
+                        </thead>
+                        <tbody id="monitorBody">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="content-tab2" class="tab-content fade-in">
+            <div class="search-card">
+                <h2>Danh sách khách hàng</h2>
+                <div id="customerButtonsList" class="customer-list-container">
+                    <p>Đang tải danh sách...</p>
+                </div>
+                <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+                <div class="search-bar">
+                    <input type="text" id="searchName" placeholder="Tìm nhanh tên khách...">
+                    <button onclick="searchCustomer()"><i class="fas fa-search"></i></button>
+                </div>
+            </div>
+            <div id="invoiceResult" class="invoice-wrapper"></div>
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</body>
+</html>
