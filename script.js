@@ -1,19 +1,51 @@
 const ADMIN_PASSWORD = "23682578"; 
-const scriptURL = 'https://script.google.com/macros/s/AKfycbxa07Iz4YOE7QJ6sUipVgCPYHVLwWGID5kWoGkLR6FK34kcpxUl7n9W1K9qEu_EFUPL/exec';
+const scriptURL = 'https://script.google.com/macros/s/AKfycbyaHHOQTMpDoXY9nqu49zDNXgVnUVLSYtd3dwL232x2q332PKQQrlLV_ZyqD-kJg-kE/exec';
 const allFields = ['hoTen', 'sanPham', 'kichThuoc', 'soLuong', 'donGia', 'ghiChu', 'nguoi', 'ngay', 'tinhTrang', 'thanhToan', 'daTra'];
 
-// 1. Biến cờ để biết khi nào đang gửi dữ liệu lên Sheet
 let isLockSync = false; 
 
-// 2. Chỉnh thời gian quét (Nên để 3-5 giây để tránh bị Google khóa do spam request)
+// --- 1. KHỞI TẠO & ĐỒNG BỘ ---
 setInterval(() => {
     if (!isLockSync) loadMonitorTable();
 }, 5000); 
 
-async function loadMonitorTable() {
-    // Nếu đang lưu thì KHÔNG được tải dữ liệu cũ đè lên
-    if (isLockSync) return;
+// Tự động điền ngày hiện tại vào ô Ngày giao
+function setDefaultDate() {
+    const ngayGiaoInput = document.getElementById('ngay');
+    if (ngayGiaoInput) {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        ngayGiaoInput.value = `${year}-${month}-${day}`;
+    }
+}
 
+function saveAllFields() {
+    let data = {};
+    allFields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) data[id] = el.value;
+    });
+    localStorage.setItem('ngan_one_form_session', JSON.stringify(data));
+}
+
+function loadAllFields() {
+    const savedData = JSON.parse(localStorage.getItem('ngan_one_form_session'));
+    if (savedData) {
+        allFields.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = savedData[id] || '';
+        });
+        updateCalculation();
+    }
+    // Sau khi load dữ liệu cũ, nếu ô ngày vẫn trống thì điền ngày hôm nay
+    setDefaultDate(); 
+}
+
+// --- 2. XỬ LÝ TAB 1: THEO DÕI KHO ---
+async function loadMonitorTable() {
+    if (isLockSync) return;
     const body = document.getElementById('monitorBody');
     if (!body) return;
     
@@ -28,7 +60,6 @@ async function loadMonitorTable() {
 
         let html = "";
         const allData = [...data].reverse(); 
-        
         allData.forEach((row) => {
             const status = row[10] || 'Duyệt';
             const dateOnly = row[0].includes(' ') ? row[0].split(' ')[0] : row[0];
@@ -49,9 +80,7 @@ async function loadMonitorTable() {
             </tr>`;
         });
         body.innerHTML = html;
-    } catch (e) { 
-        console.error("Lỗi đồng bộ:", e);
-    }
+    } catch (e) { console.error("Lỗi đồng bộ:", e); }
 }
 
 function getStatusClass(status) {
@@ -60,43 +89,17 @@ function getStatusClass(status) {
     return 'status-pending';
 }
 
-// Cập nhật trạng thái: Đã sửa lỗi giựt
 async function updateStatusOnly(hoTen, ngayTao, newStatus, selectElement) {
-    // BƯỚC 1: Khóa đồng bộ ngay để tránh bị setInterval nạp đè dữ liệu cũ
     isLockSync = true; 
-
-    // BƯỚC 2: Đổi màu giao diện ngay lập tức để người dùng thấy mượt (UI Optimistic)
     selectElement.className = `status-select ${getStatusClass(newStatus)}`;
-
     const payload = { action: "updateStatus", hoTen: hoTen, ngayTao: ngayTao, status: newStatus };
-    
     try {
         await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-        
-        // BƯỚC 3: Đợi 2 giây cho Sheet cập nhật xong rồi mới mở khóa cho loadMonitorTable chạy tiếp
-        setTimeout(() => {
-            isLockSync = false;
-        }, 2500);
-        
-    } catch (e) { 
-        alert("Lỗi cập nhật!"); 
-        isLockSync = false;
-    }
+        setTimeout(() => { isLockSync = false; }, 2500);
+    } catch (e) { alert("Lỗi cập nhật!"); isLockSync = false; }
 }
 
-window.addEventListener('load', loadMonitorTable);
-
-// --- 1. CHUYỂN TAB ---
-function showTab(tabId, element) {
-    const contents = document.querySelectorAll('.tab-content');
-    contents.forEach(content => content.classList.remove('active'));
-    document.getElementById('content-' + tabId).classList.add('active');
-    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active-nav'));
-    element.classList.add('active-nav');
-    if (tabId === 'tab2') fetchCustomerList();
-}
-
-// --- 2. TÍNH TOÁN TAB 1 ---
+// --- 3. XỬ LÝ FORM NHẬP LIỆU ---
 function updateCalculation() {
     const kichThuocInput = document.getElementById('kichThuoc');
     if (!kichThuocInput) return;
@@ -106,9 +109,7 @@ function updateCalculation() {
 
     if (parts.length >= 2) {
         const numbers = parts.map(p => parseFloat(p.trim())).filter(n => !isNaN(n));
-
         if (numbers.length >= 2) {
-            // Nhân tất cả các số trong mảng lại với nhau
             const result = numbers.reduce((total, num) => total * num, 1);
             document.getElementById('soLuong').value = parseFloat(result.toFixed(2));
         }
@@ -118,39 +119,13 @@ function updateCalculation() {
     const dg = document.getElementById('donGia').value;
     const total = (Number(sl) || 0) * (Number(dg) || 0);
     document.getElementById('tongTienHienThi').value = total.toLocaleString('vi-VN') + " VND";
-    
     saveAllFields();
 }
 
-// --- 3. LƯU & TẢI TRẠNG THÁI ---
-function saveAllFields() {
-    let data = {};
-    allFields.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) data[id] = el.value;
-    });
-    localStorage.setItem('ngan_one_form_session', JSON.stringify(data));
-}
-
-function loadAllFields() {
-    const savedData = JSON.parse(localStorage.getItem('ngan_one_form_session'));
-    if (savedData) {
-        allFields.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.value = savedData[id] || '';
-        });
-        updateCalculation();
-    }
-}
-
-allFields.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('input', updateCalculation);
-});
-
-// --- 4. GỬI DỮ LIỆU (NHẬP MỚI) ---
 document.getElementById('mainForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    updateCalculation(); // Đảm bảo tính toán lại trước khi gửi
+
     const requiredFields = ['hoTen', 'sanPham', 'soLuong', 'donGia', 'nguoi', 'ngay'];
     let missingFields = [];
     requiredFields.forEach(id => {
@@ -189,16 +164,31 @@ document.getElementById('mainForm').addEventListener('submit', async (e) => {
         await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
         btn.innerText = 'Thành công ✓';
         btn.style.backgroundColor = '#2ecc71';
-        ['sanPham', 'kichThuoc', 'ghiChu', 'soLuong', 'donGia', 'daTra', 'nguoi', 'ngay'].forEach(id => {
+        
+        // Reset các ô nhập liệu nhưng GIỮ LẠI ô Ngày và Người phân công nếu muốn
+        ['sanPham', 'kichThuoc', 'ghiChu', 'soLuong', 'donGia', 'daTra'].forEach(id => {
             const el = document.getElementById(id); if (el) el.value = '';
         });
-        updateCalculation(); saveAllFields(); fetchCustomerList();
+        
+        setDefaultDate(); // Reset xong thì điền lại ngày hôm nay
+        updateCalculation(); 
+        saveAllFields(); 
+        fetchCustomerList();
     } catch (error) { btn.innerText = 'Lỗi!'; }
     finally { setTimeout(() => { btn.innerText = originalText; btn.style.backgroundColor = ''; btn.disabled = false; }, 1500); }
 });
 
-// --- 5. TAB 2: TRA CỨU & SỬA ĐỔI ---
+// --- 4. XỬ LÝ TAB 2: TRA CỨU & HÓA ĐƠN ---
 let currentTableData = []; 
+
+function showTab(tabId, element) {
+    const contents = document.querySelectorAll('.tab-content');
+    contents.forEach(content => content.classList.remove('active'));
+    document.getElementById('content-' + tabId).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active-nav'));
+    element.classList.add('active-nav');
+    if (tabId === 'tab2') fetchCustomerList();
+}
 
 async function fetchCustomerList() {
     const listContainer = document.getElementById('customerButtonsList');
@@ -234,7 +224,6 @@ async function searchCustomer() {
     if (!name) return;
     const resultDiv = document.getElementById('invoiceResult');
     resultDiv.innerHTML = `<div style="text-align:center; padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:var(--red)"></i></div>`;
-
     try {
         const response = await fetch(scriptURL + "?ten=" + encodeURIComponent(name) + "&v=" + new Date().getTime());
         currentTableData = await response.json();
@@ -248,23 +237,22 @@ async function searchCustomer() {
 
 function renderEditableTable(name) {
     const resultDiv = document.getElementById('invoiceResult');
-    let html = `<div id="billArea">`;
-    html += `<h3>Lịch sử đơn hàng: ${name}</h3>`;
-    html += `<table class="bill-table">
-                <thead>
-                    <tr>
-                        <th>Ngày</th><th>Sản phẩm</th><th>Kích thước</th><th>Đơn giá</th><th>SL</th><th>Đã trả</th><th>Tổng</th><th>Xóa</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-    
+    let html = `<div id="billArea"><h3>Lịch sử đơn hàng: ${name}</h3><table class="bill-table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>Kích thước</th><th>Đơn giá</th><th>SL</th><th>Đã trả</th><th>Tổng</th><th>Xóa</th></tr></thead><tbody>`;
     let tAll = 0, pAll = 0;
 
     currentTableData.forEach((row, index) => {
-        // ... (Giữ nguyên phần xử lý displayDate, dg, sl, p, rowTotal như cũ) ...
-        const rowTotal = (Number(row[6]) || 0) * (Number(row[5]) || 0);
-        tAll += rowTotal;
-        pAll += (Number(row[12]) || 0);
+        let displayDate = row[0] ? row[0].toString() : "";
+        if (displayDate.includes('T')) {
+            displayDate = new Date(displayDate).toLocaleDateString('vi-VN');
+        } else if (displayDate.includes(' ')) {
+            displayDate = displayDate.split(' ')[0];
+        }
+
+        const dg = Number(row[6]?.toString().replace(/[^0-9]/g, '')) || 0;
+        const sl = Number(row[5]) || 0;
+        const p = Number(row[12]?.toString().replace(/[^0-9]/g, '')) || 0;
+        const rowTotal = dg * sl;
+        tAll += rowTotal; pAll += p;
 
         html += `<tr>
             <td data-label="Ngày" class="date-cell">${displayDate}</td>
@@ -274,90 +262,26 @@ function renderEditableTable(name) {
             <td data-label="Số lượng"><input id="table-sl-${index}" class="bill-input" type="number" value="${sl}" oninput="currentTableData[${index}][5]=this.value; updateTableSummary()"></td>
             <td data-label="Đã trả"><input class="bill-input paid" type="number" value="${p}" oninput="currentTableData[${index}][12]=this.value; updateTableSummary()"></td>
             <td data-label="Tổng" class="bold" id="table-total-${index}">${rowTotal.toLocaleString()}</td>
-            
-            <td style="text-align:center;">
-                <button onclick="deleteSingleRow('${name}', '${row[0]}', this)" style="border:none; background:none; color:var(--red); cursor:pointer; font-size:1.1rem;">
-                    <i class="fas fa-trash-alt"></i>
-                </button>
-            </td>
+            <td style="text-align:center;"><button onclick="deleteSingleRow('${name}', '${row[0]}', this)" style="border:none; background:none; color:var(--red); cursor:pointer;"><i class="fas fa-trash-alt"></i></button></td>
         </tr>`;
     });
 
     const debt = tAll - pAll;
-    html += `</tbody></table>`;
-    html += `<div class="bill-summary">
-            <p>Tổng cộng: <b id="summary-tAll">${tAll.toLocaleString()} VND</b></p>
-            <p class="paid">Đã thanh toán: <b id="summary-pAll">${pAll.toLocaleString()} VND</b></p>
-            <p class="total-row" id="summary-debt-row" style="color: ${debt > 0 ? 'var(--red)' : 'green'}">Còn nợ: <span id="summary-debt">${debt.toLocaleString()}</span> VND</p>
-        </div>
-        <p class="bill-footer">Thời gian xuất bill: ${new Date().toLocaleTimeString('vi-VN')} ${new Date().toLocaleDateString('vi-VN')}</p>
-    </div>`;
-
-    html += `
-    <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
-        <button onclick="saveChangesToSheet('${name}')" class="btn" style="background: #2ecc71; flex: 1; margin: 0;">
-            <i class="fas fa-save"></i> LƯU THAY ĐỔI
-        </button>
-        <button onclick="clearCustomerData('${name}')" class="btn" style="background: #34495e; flex: 1; margin: 0;">
-            <i class="fas fa-check-double"></i> XÁC NHẬN THANH TOÁN & XÓA LỊCH SỬ
-        </button>
-        <button onclick="downloadBillImage('${name}')" class="btn btn-download" style="flex: 1; margin: 0;">
-            <i class="fas fa-camera"></i> XUẤT HÓA ĐƠN
-        </button>
-    </div>`;
+    html += `</tbody></table><div class="bill-summary"><p>Tổng cộng: <b id="summary-tAll">${tAll.toLocaleString()} VND</b></p><p class="paid">Đã thanh toán: <b id="summary-pAll">${pAll.toLocaleString()} VND</b></p><p class="total-row" id="summary-debt-row" style="color: ${debt > 0 ? 'var(--red)' : 'green'}">Còn nợ: <span id="summary-debt">${debt.toLocaleString()}</span> VND</p></div><p class="bill-footer">Thời gian xuất bill: ${new Date().toLocaleTimeString('vi-VN')} ${new Date().toLocaleDateString('vi-VN')}</p></div>`;
+    html += `<div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;"><button onclick="saveChangesToSheet('${name}')" class="btn" style="background: #2ecc71; flex: 1; margin: 0;"><i class="fas fa-save"></i> LƯU THAY ĐỔI</button><button onclick="clearCustomerData('${name}')" class="btn" style="background: #34495e; flex: 1; margin: 0;"><i class="fas fa-check-double"></i> XÓA LỊCH SỬ</button><button onclick="downloadBillImage('${name}')" class="btn btn-download" style="flex: 1; margin: 0;"><i class="fas fa-camera"></i> XUẤT HÓA ĐƠN</button></div>`;
     resultDiv.innerHTML = html;
 }
 
-async function deleteSingleRow(hoTen, ngayTao, btnElement) {
-    // Bước 1: Yêu cầu mật khẩu
-    const userPassword = prompt(`XÁC NHẬN XÓA ĐƠN LẺ:\nNhập mật khẩu để xóa đơn hàng của khách "${hoTen}":`);
-    
-    if (userPassword === null) return; // Bấm Hủy
-    
-    if (userPassword !== ADMIN_PASSWORD) {
-        alert("Mật khẩu không chính xác! Không thể xóa dòng này.");
-        return;
-    }
-
-    // Bước 2: Xác nhận lần cuối
-    const finalConfirm = confirm("Mật khẩu đúng. Bạn chắc chắn muốn xóa vĩnh viễn dòng này chứ?");
-    if (!finalConfirm) return;
-
-    const rowElement = btnElement.closest('tr');
-    rowElement.style.backgroundColor = '#ffeef0'; // Tô màu cảnh báo dòng đang xóa
-    
-    try {
-        await fetch(scriptURL, {
-            method: 'POST',
-            mode: 'no-cors',
-            body: JSON.stringify({ 
-                action: "deleteSingle", 
-                hoTen: hoTen,
-                ngayTao: ngayTao 
-            })
-        });
-
-        alert("Đã xóa đơn hàng thành công!");
-        // Refresh lại dữ liệu Tab 2 để tính lại tổng tiền nợ
-        searchCustomer(); 
-        // Cập nhật lại kho ở Tab 1
-        if (typeof loadMonitorTable === 'function') loadMonitorTable(); 
-
-    } catch (e) {
-        alert("Lỗi kết nối khi xóa dòng!");
-        rowElement.style.backgroundColor = '';
-    }
-}
-
-// --- LOGIC ĐỒNG BỘ BẢNG ---
 function handleTableSizeChange(index, val) {
     currentTableData[index][3] = val;
-    const regex = /^(\d+(?:\.\d+)?)\s*[xX*]\s*(\d+(?:\.\d+)?)$/;
-    const match = val.toLowerCase().trim().match(regex);
-    if (match) {
-        const autoQty = parseFloat((parseFloat(match[1]) * parseFloat(match[2])).toFixed(2));
-        currentTableData[index][5] = autoQty;
-        document.getElementById(`table-sl-${index}`).value = autoQty;
+    const parts = val.toLowerCase().replace(/,/g, '.').split(/[x*]/);
+    if (parts.length >= 2) {
+        const nums = parts.map(p => parseFloat(p.trim())).filter(n => !isNaN(n));
+        if (nums.length >= 2) {
+            const res = nums.reduce((a, b) => a * b, 1);
+            currentTableData[index][5] = parseFloat(res.toFixed(2));
+            document.getElementById(`table-sl-${index}`).value = currentTableData[index][5];
+        }
     }
     updateTableSummary();
 }
@@ -384,121 +308,64 @@ function updateTableSummary() {
     document.getElementById('summary-debt-row').style.color = debt > 0 ? 'var(--red)' : 'green';
 }
 
-// --- HÀM QUAN TRỌNG: LƯU LẠI LÊN GOOGLE SHEET ---
+// --- 5. CÁC HÀM XÓA & LƯU ---
 async function saveChangesToSheet(customerName) {
-    const userPassword = prompt("Vui lòng nhập mật khẩu để lưu thay đổi:");
-    if (userPassword === null) return; 
-    if (userPassword !== ADMIN_PASSWORD) {
-        alert("Mật khẩu không chính xác!");
-        return;
-    }
-    if (!confirm("Xác nhận cập nhật dữ liệu lên Sheet?")) return;
-
+    const userPassword = prompt("Nhập mật khẩu để lưu:");
+    if (userPassword !== ADMIN_PASSWORD) { if (userPassword !== null) alert("Sai mật khẩu!"); return; }
+    if (!confirm("Cập nhật lên Sheet?")) return;
     const btn = event.currentTarget;
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...'; 
     btn.disabled = true;
-
-    // SỬA TẠI ĐÂY: Khớp chính xác tên cột với GAS nhận diện
     const updatedList = currentTableData.map(row => ({
-        ngayTao: row[0],
-        sanPham: row[2],
-        kichThuoc: row[3],
-        ghiChu: row[4],
-        soLuong: row[5],
-        donGia: row[6],
-        nguoiPhanCong: row[8],
-        ngayGiao: row[9],
-        tinhTrang: row[10],
-        thanhToan: row[11],
-        daTra: row[12]
+        ngayTao: row[0], sanPham: row[2], kichThuoc: row[3], ghiChu: row[4], soLuong: row[5], donGia: row[6], nguoiPhanCong: row[8], ngayGiao: row[9], tinhTrang: row[10], thanhToan: row[11], daTra: row[12]
     }));
-
-    const payload = { 
-        action: "update", 
-        hoTen: customerName, 
-        list: updatedList 
-    };
-
     try {
-        await fetch(scriptURL, {
-            method: 'POST',
-            mode: 'no-cors', // Sử dụng no-cors cho Google Script
-            body: JSON.stringify(payload)
-        });
+        await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: "update", hoTen: customerName, list: updatedList }) });
+        alert("Đã cập nhật!"); searchCustomer();
+    } catch (e) { alert("Lỗi!"); }
+    finally { btn.disabled = false; }
+}
 
-        btn.innerHTML = '<i class="fas fa-check"></i> Đang cập nhật...';
-        setTimeout(() => {
-            alert("Đã cập nhật xong!");
-            searchCustomer();
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-        }, 2000); 
+async function deleteSingleRow(hoTen, ngayTao, btnElement) {
+    const userPassword = prompt("Nhập mật khẩu để xóa dòng:");
+    if (userPassword !== ADMIN_PASSWORD) { if (userPassword !== null) alert("Sai mật khẩu!"); return; }
+    if (!confirm("Xóa dòng này trên Sheet?")) return;
+    try {
+        await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: "deleteSingle", hoTen: hoTen, ngayTao: ngayTao }) });
+        setTimeout(() => { searchCustomer(); loadMonitorTable(); }, 1500);
+    } catch (e) { alert("Lỗi!"); }
+}
 
-    } catch (e) {
-        alert("Lỗi khi lưu!");
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
+async function clearCustomerData(customerName) {
+    const userPassword = prompt("Nhập mật khẩu để xóa TOÀN BỘ:");
+    if (userPassword !== ADMIN_PASSWORD) { if (userPassword !== null) alert("Sai mật khẩu!"); return; }
+    if (!confirm("Xóa sạch lịch sử khách này?")) return;
+    try {
+        await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: "delete", hoTen: customerName, pass: userPassword }) });
+        alert("Đã xóa!"); document.getElementById('invoiceResult').innerHTML = ""; fetchCustomerList(); loadMonitorTable();
+    } catch (e) { alert("Lỗi!"); }
 }
 
 function downloadBillImage(customerName) {
     const element = document.getElementById('billArea');
-    const btn = event.currentTarget;
-    const originalContent = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang tạo ảnh...'; btn.disabled = true;
-
     html2canvas(element, { scale: 2, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => {
         const link = document.createElement('a');
-        link.download = `Bill_${customerName}_${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.png`;
+        link.download = `Bill_${customerName}.png`;
         link.href = canvas.toDataURL("image/png");
         link.click();
-        btn.innerHTML = originalContent; btn.disabled = false;
     });
 }
 
-async function clearCustomerData(customerName) {
-    // Bước 1: Nhập mật khẩu
-    const userPassword = prompt(`Vui lòng nhập mật khẩu để XÓA VĨNH VIỄN khách hàng "${customerName}":`);
-    
-    if (userPassword === null) return; // Bấm Hủy
-    
-    if (userPassword !== ADMIN_PASSWORD) {
-        alert("Mật khẩu không chính xác! Hành động xóa bị từ chối.");
-        return;
-    }
+// --- 6. KHỞI CHẠY ---
+window.addEventListener('load', () => {
+    loadAllFields();
+    loadMonitorTable();
+});
 
-    // Bước 2: Xác nhận lần cuối
-    const finalConfirm = confirm("Mật khẩu đúng. Bạn có chắc chắn muốn xóa sạch dữ liệu khách này không?");
-    if (!finalConfirm) return;
-
-    const btn = event.currentTarget;
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xóa...';
-    btn.disabled = true;
-
-    try {
-        await fetch(scriptURL, {
-            method: 'POST',
-            mode: 'no-cors',
-            body: JSON.stringify({ 
-                action: "delete", 
-                hoTen: customerName,
-                pass: userPassword // Gửi pass xuống để GAS kiểm tra thêm 1 lần nữa
-            })
-        });
-
-        alert("Hệ thống đã dọn dẹp xong dữ liệu khách hàng!");
-        document.getElementById('invoiceResult').innerHTML = ""; 
-        fetchCustomerList(); 
-        if (typeof loadMonitorTable === 'function') loadMonitorTable(); 
-
-    } catch (e) {
-        alert("Lỗi kết nối khi xóa!");
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-}
-
-window.onload = loadAllFields;
+// Lắng nghe thay đổi để tự động lưu form nháp
+allFields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', () => {
+        if(id === 'kichThuoc' || id === 'soLuong' || id === 'donGia') updateCalculation();
+        saveAllFields();
+    });
+});
