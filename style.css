@@ -86,7 +86,7 @@ body {
 .btn-red { background: var(--red); }
 .btn-red:hover { background: #d62828; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(230, 57, 70, 0.2); }
 
-/* --- MONITOR TABLE STYLING --- */
+/* --- MONITOR TABLE STYLING (BẢNG TAB 1) --- */
 .monitor-section {
     background: #ffffff;
     border-radius: 12px;
@@ -96,7 +96,7 @@ body {
 
 #monitorTable {
     border-collapse: separate;
-    border-spacing: 0 8px; /* Tạo khoảng cách giữa các dòng */
+    border-spacing: 0 8px;
     width: 100%;
 }
 
@@ -117,18 +117,18 @@ body {
 }
 
 #monitorTable tbody td {
-    padding: 15px 12px;
+    padding: 12px; /* Tăng padding để không bị cắt chữ */
     border-top: 1px solid #f1f1f1;
     border-bottom: 1px solid #f1f1f1;
     font-size: 14px;
+    vertical-align: middle;
+    line-height: 1.5; /* Sửa lỗi cắt nửa chữ */
 }
 
 #monitorTable tbody td:first-child { border-left: 1px solid #f1f1f1; border-radius: 8px 0 0 8px; }
 #monitorTable tbody td:last-child { border-right: 1px solid #f1f1f1; border-radius: 0 8px 8px 0; }
 
-/* Các ô đặc biệt */
-.date-cell { color: #888; font-size: 12px !important; }
-.customer-cell { color: var(--red); }
+.customer-cell { color: var(--red); font-weight: 600; }
 .size-tag {
     background: #f0f0f0;
     padding: 2px 6px;
@@ -137,7 +137,6 @@ body {
 }
 .qty-cell { font-weight: bold; color: #333; }
 
-/* Trạng thái Select */
 .status-select {
     border: none;
     padding: 6px 10px;
@@ -153,7 +152,6 @@ body {
 .status-working { background: #fff4e5; color: #ff9800; }
 .status-done { background: #d4f8e8; color: #27ae60; }
 
-/* Hiệu ứng scroll mượt */
 .monitor-wrapper {
     max-height: 600px;
     overflow-y: auto;
@@ -190,7 +188,7 @@ body {
 .search-bar input { flex: 1; border: none; padding: 12px 20px; outline: none; font-size: 15px; }
 .search-bar button { background: var(--red); color: white; border: none; padding: 0 25px; cursor: pointer; }
 
-/* --- PHẦN BILL TRA CỨU & SỬA TẠI CHỖ --- */
+/* --- PHẦN BILL TRA CỨU (TAB 2) --- */
 #billArea {
     background: #ffffff; padding: 25px; border-radius: 15px;
     border: 1px solid #eeeeee; color: var(--dark);
@@ -202,15 +200,28 @@ body {
     text-transform: uppercase;
 }
 
-.bill-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.bill-table th { background: #f8f9fa; text-align: left; padding: 10px; border: 1px solid #dddddd; }
-.bill-table td { padding: 10px; border: 1px solid #eeeeee; text-align: left; }
+.bill-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.bill-table th { background: #f8f9fa; text-align: left; padding: 12px 10px; border: 1px solid #dddddd; }
+.bill-table td { 
+    padding: 12px 10px; /* Tăng padding để hiện rõ chữ */
+    border: 1px solid #eeeeee; 
+    text-align: left; 
+    line-height: 1.5; /* Sửa lỗi cắt nửa chữ */
+}
 
-/* Ô nhập liệu "tàng hình" trong bảng Bill */
+.date-cell { 
+    color: #888; 
+    font-size: 12px !important; 
+    white-space: nowrap; /* Tránh ngày bị nhảy dòng */
+}
+
+/* Ô nhập liệu trong bảng Bill */
 .bill-input {
     width: 100%; border: none; background: transparent;
-    font-family: inherit; font-size: inherit; color: inherit;
-    padding: 2px 0; outline: none;
+    font-family: inherit; font-size: 14px; color: inherit;
+    padding: 5px 0; outline: none;
+    line-height: 1.4; /* Đảm bảo không bị cắt chữ khi gõ */
+    display: block;
 }
 .bill-input:focus { background: #fff8f8; border-bottom: 1px solid var(--red); }
 .bill-input.bold { font-weight: 600; }
@@ -220,7 +231,7 @@ body {
 .bill-summary {
     margin-top: 20px; font-size: 14px;
     border-top: 2px solid #eeeeee; padding-top: 15px;
-    text-align: right; /* Tài chính dồn sang phải */
+    text-align: right;
 }
 .bill-summary p { margin: 8px 0; }
 .bill-summary .total-row {
@@ -229,7 +240,7 @@ body {
 
 .bill-footer {
     font-size: 11px; color: #999; margin-top: 20px;
-    font-style: italic; text-align: center; /* Thời gian ra giữa */
+    font-style: italic; text-align: center;
     border-top: 1px dashed #eee; padding-top: 10px;
 }
 
@@ -249,37 +260,20 @@ body {
     .btn { max-width: 100%; }
 }
 
-/* --- TỐI ƯU GIAO DIỆN CHO ĐIỆN THOẠI (MOBILE) --- */
+/* --- TỐI ƯU CHO MOBILE --- */
 @media (max-width: 768px) {
-    /* Ẩn tiêu đề bảng vì đã có data-label */
     .bill-table thead { display: none; }
-
     .bill-table tr {
-        display: block;
-        margin-bottom: 15px;
-        border: 1px solid #eee;
-        padding: 10px;
-        border-radius: 10px;
+        display: block; margin-bottom: 15px;
+        border: 1px solid #eee; padding: 10px; border-radius: 10px;
     }
-
     .bill-table td {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-bottom: 1px dashed #eee;
-        padding: 8px 0;
-        text-align: right;
+        display: flex; justify-content: space-between; align-items: center;
+        border-bottom: 1px dashed #eee; padding: 10px 0; text-align: right;
     }
-
     .bill-table td::before {
-        content: attr(data-label); /* Hiển thị tên cột từ JS qua đây */
-        font-weight: bold;
-        text-align: left;
-        color: var(--dark);
+        content: attr(data-label);
+        font-weight: bold; text-align: left; color: var(--dark);
     }
-
-    .bill-input {
-        width: 60% !important;
-        text-align: right;
-    }
+    .bill-input { width: 60% !important; text-align: right; }
 }
