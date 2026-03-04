@@ -1,15 +1,10 @@
 const ADMIN_PASSWORD = "23682578"; 
-const scriptURL = 'https://script.google.com/macros/s/AKfycbyaHHOQTMpDoXY9nqu49zDNXgVnUVLSYtd3dwL232x2q332PKQQrlLV_ZyqD-kJg-kE/exec';
+const scriptURL = 'https://script.google.com/macros/s/AKfycbyXN8Vi4Aod0y13PgVXyKxkf82X36AiOQmCjrYRcOjGMvhct501AV5oOoQbILhGtgvJ/exec';
 const allFields = ['hoTen', 'sanPham', 'kichThuoc', 'soLuong', 'donGia', 'ghiChu', 'nguoi', 'ngay', 'tinhTrang', 'thanhToan', 'daTra'];
 
 let isLockSync = false; 
 
-// --- 1. KHỞI TẠO & ĐỒNG BỘ ---
-setInterval(() => {
-    if (!isLockSync) loadMonitorTable();
-}, 5000); 
-
-// Tự động điền ngày hiện tại vào ô Ngày giao
+// --- 1. KHỞI TẠO & ĐIỀN NGÀY MẶC ĐỊNH ---
 function setDefaultDate() {
     const ngayGiaoInput = document.getElementById('ngay');
     if (ngayGiaoInput) {
@@ -39,11 +34,14 @@ function loadAllFields() {
         });
         updateCalculation();
     }
-    // Sau khi load dữ liệu cũ, nếu ô ngày vẫn trống thì điền ngày hôm nay
     setDefaultDate(); 
 }
 
 // --- 2. XỬ LÝ TAB 1: THEO DÕI KHO ---
+setInterval(() => {
+    if (!isLockSync) loadMonitorTable();
+}, 5000); 
+
 async function loadMonitorTable() {
     if (isLockSync) return;
     const body = document.getElementById('monitorBody');
@@ -62,8 +60,6 @@ async function loadMonitorTable() {
         const allData = [...data].reverse(); 
         allData.forEach((row) => {
             const status = row[10] || 'Duyệt';
-            const dateOnly = row[0].includes(' ') ? row[0].split(' ')[0] : row[0];
-
             html += `<tr>
                 <td class="customer-cell"><b>${row[1]}</b></td>
                 <td>${row[2]}</td>
@@ -92,9 +88,8 @@ function getStatusClass(status) {
 async function updateStatusOnly(hoTen, ngayTao, newStatus, selectElement) {
     isLockSync = true; 
     selectElement.className = `status-select ${getStatusClass(newStatus)}`;
-    const payload = { action: "updateStatus", hoTen: hoTen, ngayTao: ngayTao, status: newStatus };
     try {
-        await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+        await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: "updateStatus", hoTen: hoTen, ngayTao: ngayTao, status: newStatus }) });
         setTimeout(() => { isLockSync = false; }, 2500);
     } catch (e) { alert("Lỗi cập nhật!"); isLockSync = false; }
 }
@@ -118,29 +113,27 @@ function updateCalculation() {
     const sl = document.getElementById('soLuong').value;
     const dg = document.getElementById('donGia').value;
     const total = (Number(sl) || 0) * (Number(dg) || 0);
-    document.getElementById('tongTienHienThi').value = total.toLocaleString('vi-VN') + " VND";
+    const hienThiTotal = document.getElementById('tongTienHienThi');
+    if (hienThiTotal) hienThiTotal.value = total.toLocaleString('vi-VN') + " VND";
     saveAllFields();
 }
 
 document.getElementById('mainForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    updateCalculation(); // Đảm bảo tính toán lại trước khi gửi
+    updateCalculation();
 
     const requiredFields = ['hoTen', 'sanPham', 'soLuong', 'donGia', 'nguoi', 'ngay'];
-    let missingFields = [];
+    let hasError = false;
     requiredFields.forEach(id => {
         const el = document.getElementById(id);
         if (!el || !el.value.trim()) {
-            missingFields.push(id);
+            if (!hasError) el.focus();
             el.style.borderBottom = "2px solid #e63946";
+            hasError = true;
         } else { el.style.borderBottom = "2px solid #eee"; }
     });
 
-    if (missingFields.length > 0) {
-        alert("Chưa điền đủ thông tin quan trọng!");
-        document.getElementById(missingFields[0]).focus();
-        return; 
-    }
+    if (hasError) { alert("Chưa điền đủ thông tin!"); return; }
 
     const btn = e.target.querySelector('button');
     const originalText = btn.innerText;
@@ -150,8 +143,9 @@ document.getElementById('mainForm').addEventListener('submit', async (e) => {
         hoTen: document.getElementById('hoTen').value,
         sanPham: document.getElementById('sanPham').value,
         kichThuoc: document.getElementById('kichThuoc').value,
-        soLuong: document.getElementById('soLuong').value,
-        donGia: document.getElementById('donGia').value,
+        // ĐẢM BẢO GỬI SỐ THỰC
+        soLuong: parseFloat(document.getElementById('soLuong').value) || 0,
+        donGia: parseFloat(document.getElementById('donGia').value) || 0,
         ghiChu: document.getElementById('ghiChu').value,
         nguoiPhanCong: document.getElementById('nguoi').value, 
         ngayGiao: document.getElementById('ngay').value,
@@ -165,12 +159,11 @@ document.getElementById('mainForm').addEventListener('submit', async (e) => {
         btn.innerText = 'Thành công ✓';
         btn.style.backgroundColor = '#2ecc71';
         
-        // Reset các ô nhập liệu nhưng GIỮ LẠI ô Ngày và Người phân công nếu muốn
         ['sanPham', 'kichThuoc', 'ghiChu', 'soLuong', 'donGia', 'daTra'].forEach(id => {
             const el = document.getElementById(id); if (el) el.value = '';
         });
         
-        setDefaultDate(); // Reset xong thì điền lại ngày hôm nay
+        setDefaultDate();
         updateCalculation(); 
         saveAllFields(); 
         fetchCustomerList();
@@ -178,14 +171,13 @@ document.getElementById('mainForm').addEventListener('submit', async (e) => {
     finally { setTimeout(() => { btn.innerText = originalText; btn.style.backgroundColor = ''; btn.disabled = false; }, 1500); }
 });
 
-// --- 4. XỬ LÝ TAB 2: TRA CỨU & HÓA ĐƠN ---
+// --- 4. TRA CỨU & HÓA ĐƠN ---
 let currentTableData = []; 
 
 function showTab(tabId, element) {
-    const contents = document.querySelectorAll('.tab-content');
-    contents.forEach(content => content.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.getElementById('content-' + tabId).classList.add('active');
-    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active-nav'));
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active-nav'));
     element.classList.add('active-nav');
     if (tabId === 'tab2') fetchCustomerList();
 }
@@ -197,7 +189,7 @@ async function fetchCustomerList() {
     try {
         const response = await fetch(scriptURL + "?listNames=true&v=" + new Date().getTime());
         const names = await response.json();
-        if (names && names.length > 0) {
+        if (names) {
             localStorage.setItem('ngan_customer_cache', JSON.stringify(names));
             renderCustomerButtons(names);
         }
@@ -249,19 +241,27 @@ function renderEditableTable(name) {
         }
 
         const dg = Number(row[6]?.toString().replace(/[^0-9]/g, '')) || 0;
-        const sl = Number(row[5]) || 0;
+        
+        // FIX LỖI: KIỂM TRA SL NẾU BỊ SHEET BIẾN THÀNH NGÀY THÁNG
+        let sl = row[5];
+        if (isNaN(sl) || typeof sl === 'object') {
+            sl = parseFloat(row[5]) || 0;
+        } else {
+            sl = Number(sl) || 0;
+        }
+
         const p = Number(row[12]?.toString().replace(/[^0-9]/g, '')) || 0;
         const rowTotal = dg * sl;
         tAll += rowTotal; pAll += p;
 
         html += `<tr>
-            <td data-label="Ngày" class="date-cell">${displayDate}</td>
-            <td data-label="Sản phẩm"><input class="bill-input bold" value="${row[2]}" oninput="currentTableData[${index}][2]=this.value"></td>
-            <td data-label="Kích thước"><input class="bill-input" value="${row[3] || '-'}" oninput="handleTableSizeChange(${index}, this.value)"></td>
-            <td data-label="Đơn giá"><input class="bill-input" type="number" value="${dg}" oninput="handleTablePriceChange(${index}, this.value)"></td>
-            <td data-label="Số lượng"><input id="table-sl-${index}" class="bill-input" type="number" value="${sl}" oninput="currentTableData[${index}][5]=this.value; updateTableSummary()"></td>
-            <td data-label="Đã trả"><input class="bill-input paid" type="number" value="${p}" oninput="currentTableData[${index}][12]=this.value; updateTableSummary()"></td>
-            <td data-label="Tổng" class="bold" id="table-total-${index}">${rowTotal.toLocaleString()}</td>
+            <td>${displayDate}</td>
+            <td><input class="bill-input bold" value="${row[2]}" oninput="currentTableData[${index}][2]=this.value"></td>
+            <td><input class="bill-input" value="${row[3] || '-'}" oninput="handleTableSizeChange(${index}, this.value)"></td>
+            <td><input class="bill-input" type="number" value="${dg}" oninput="handleTablePriceChange(${index}, this.value)"></td>
+            <td><input id="table-sl-${index}" class="bill-input" type="number" step="0.01" value="${sl}" oninput="currentTableData[${index}][5]=this.value; updateTableSummary()"></td>
+            <td><input class="bill-input paid" type="number" value="${p}" oninput="currentTableData[${index}][12]=this.value; updateTableSummary()"></td>
+            <td class="bold" id="table-total-${index}">${rowTotal.toLocaleString()}</td>
             <td style="text-align:center;"><button onclick="deleteSingleRow('${name}', '${row[0]}', this)" style="border:none; background:none; color:var(--red); cursor:pointer;"><i class="fas fa-trash-alt"></i></button></td>
         </tr>`;
     });
@@ -272,15 +272,16 @@ function renderEditableTable(name) {
     resultDiv.innerHTML = html;
 }
 
+// --- 5. LOGIC BẢNG & ĐỒNG BỘ ---
 function handleTableSizeChange(index, val) {
     currentTableData[index][3] = val;
     const parts = val.toLowerCase().replace(/,/g, '.').split(/[x*]/);
     if (parts.length >= 2) {
         const nums = parts.map(p => parseFloat(p.trim())).filter(n => !isNaN(n));
         if (nums.length >= 2) {
-            const res = nums.reduce((a, b) => a * b, 1);
-            currentTableData[index][5] = parseFloat(res.toFixed(2));
-            document.getElementById(`table-sl-${index}`).value = currentTableData[index][5];
+            currentTableData[index][5] = parseFloat(nums.reduce((a, b) => a * b, 1).toFixed(2));
+            const slEl = document.getElementById(`table-sl-${index}`);
+            if (slEl) slEl.value = currentTableData[index][5];
         }
     }
     updateTableSummary();
@@ -294,62 +295,64 @@ function handleTablePriceChange(index, val) {
 function updateTableSummary() {
     let tAll = 0, pAll = 0;
     currentTableData.forEach((row, index) => {
+        // ÉP KIỂU SỐ AN TOÀN TRONG KHI TÍNH TỔNG
         const dg = Number(row[6]) || 0;
         const sl = Number(row[5]) || 0;
-        const p = Number(row[12]) || 0;
         const total = dg * sl;
-        tAll += total; pAll += p;
-        document.getElementById(`table-total-${index}`).innerText = total.toLocaleString();
+        tAll += total; pAll += (Number(row[12]) || 0);
+        const el = document.getElementById(`table-total-${index}`);
+        if (el) el.innerText = total.toLocaleString();
     });
     const debt = tAll - pAll;
     document.getElementById('summary-tAll').innerText = tAll.toLocaleString() + " VND";
     document.getElementById('summary-pAll').innerText = pAll.toLocaleString() + " VND";
     document.getElementById('summary-debt').innerText = debt.toLocaleString();
-    document.getElementById('summary-debt-row').style.color = debt > 0 ? 'var(--red)' : 'green';
 }
 
-// --- 5. CÁC HÀM XÓA & LƯU ---
 async function saveChangesToSheet(customerName) {
-    const userPassword = prompt("Nhập mật khẩu để lưu:");
-    if (userPassword !== ADMIN_PASSWORD) { if (userPassword !== null) alert("Sai mật khẩu!"); return; }
-    if (!confirm("Cập nhật lên Sheet?")) return;
-    const btn = event.currentTarget;
-    btn.disabled = true;
+    const pass = prompt("Nhập mật khẩu:");
+    if (pass !== ADMIN_PASSWORD) return;
     const updatedList = currentTableData.map(row => ({
-        ngayTao: row[0], sanPham: row[2], kichThuoc: row[3], ghiChu: row[4], soLuong: row[5], donGia: row[6], nguoiPhanCong: row[8], ngayGiao: row[9], tinhTrang: row[10], thanhToan: row[11], daTra: row[12]
+        ngayTao: row[0], 
+        sanPham: row[2], 
+        kichThuoc: row[3], 
+        ghiChu: row[4], 
+        soLuong: parseFloat(row[5]) || 0, // GỬI DẠNG SỐ
+        donGia: parseFloat(row[6]) || 0, 
+        nguoiPhanCong: row[8], 
+        ngayGiao: row[9], 
+        tinhTrang: row[10], 
+        thanhToan: row[11], 
+        daTra: parseFloat(row[12]) || 0
     }));
     try {
         await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: "update", hoTen: customerName, list: updatedList }) });
         alert("Đã cập nhật!"); searchCustomer();
     } catch (e) { alert("Lỗi!"); }
-    finally { btn.disabled = false; }
 }
 
-async function deleteSingleRow(hoTen, ngayTao, btnElement) {
-    const userPassword = prompt("Nhập mật khẩu để xóa dòng:");
-    if (userPassword !== ADMIN_PASSWORD) { if (userPassword !== null) alert("Sai mật khẩu!"); return; }
-    if (!confirm("Xóa dòng này trên Sheet?")) return;
+async function deleteSingleRow(hoTen, ngayTao, btn) {
+    if (prompt("Nhập mật khẩu để xóa:") !== ADMIN_PASSWORD) return;
     try {
         await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: "deleteSingle", hoTen: hoTen, ngayTao: ngayTao }) });
         setTimeout(() => { searchCustomer(); loadMonitorTable(); }, 1500);
     } catch (e) { alert("Lỗi!"); }
 }
 
-async function clearCustomerData(customerName) {
-    const userPassword = prompt("Nhập mật khẩu để xóa TOÀN BỘ:");
-    if (userPassword !== ADMIN_PASSWORD) { if (userPassword !== null) alert("Sai mật khẩu!"); return; }
-    if (!confirm("Xóa sạch lịch sử khách này?")) return;
+async function clearCustomerData(name) {
+    if (prompt("Nhập mật khẩu:") !== ADMIN_PASSWORD) return;
     try {
-        await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: "delete", hoTen: customerName, pass: userPassword }) });
-        alert("Đã xóa!"); document.getElementById('invoiceResult').innerHTML = ""; fetchCustomerList(); loadMonitorTable();
+        await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: "delete", hoTen: name, pass: ADMIN_PASSWORD }) });
+        document.getElementById('invoiceResult').innerHTML = ""; fetchCustomerList(); loadMonitorTable();
     } catch (e) { alert("Lỗi!"); }
 }
 
-function downloadBillImage(customerName) {
-    const element = document.getElementById('billArea');
-    html2canvas(element, { scale: 2, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => {
+function downloadBillImage(name) {
+    const el = document.getElementById('billArea');
+    if (typeof html2canvas === 'undefined') { alert("Vui lòng đợi 2s nạp thư viện!"); return; }
+    html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => {
         const link = document.createElement('a');
-        link.download = `Bill_${customerName}.png`;
+        link.download = `Bill_${name}.png`;
         link.href = canvas.toDataURL("image/png");
         link.click();
     });
@@ -361,11 +364,10 @@ window.addEventListener('load', () => {
     loadMonitorTable();
 });
 
-// Lắng nghe thay đổi để tự động lưu form nháp
 allFields.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', () => {
-        if(id === 'kichThuoc' || id === 'soLuong' || id === 'donGia') updateCalculation();
+        if(['kichThuoc', 'soLuong', 'donGia'].includes(id)) updateCalculation();
         saveAllFields();
     });
 });
