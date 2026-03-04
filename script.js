@@ -285,7 +285,6 @@ function handleTableSizeChange(index, val) {
     if (parts.length >= 2) {
         const nums = parts.map(p => parseFloat(p.trim())).filter(n => !isNaN(n));
         if (nums.length >= 2) {
-            // Gán số thực vào mảng dữ liệu
             const result = nums.reduce((a, b) => a * b, 1);
             currentTableData[index][5] = parseFloat(result.toFixed(2));
             
