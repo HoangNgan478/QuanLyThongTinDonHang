@@ -1,5 +1,5 @@
 const ADMIN_PASSWORD = "23682578"; 
-const scriptURL = 'https://script.google.com/macros/s/AKfycbzeRQQL8wLHzVmYp18J3rva9TJ3uVqgDn0sqBhi3PR580q1Kc7k9JFw3sbUzWaCqgKU/exec';
+const scriptURL = 'https://script.google.com/macros/s/AKfycbzKq-wqBblqN7_QhKRouP4XNKP_ufvCscMnUcnziULJ0OVracyqArEL-zzO1H5ydhKs/exec';
 const allFields = ['hoTen', 'sanPham', 'kichThuoc', 'soLuong', 'donGia', 'ghiChu', 'nguoi', 'ngay', 'tinhTrang', 'thanhToan', 'daTra'];
 
 // 1. Biến cờ để biết khi nào đang gửi dữ liệu lên Sheet
@@ -98,17 +98,28 @@ function showTab(tabId, element) {
 
 // --- 2. TÍNH TOÁN TAB 1 ---
 function updateCalculation() {
-    const sizeVal = document.getElementById('kichThuoc').value;
-    const regex = /^(\d+(?:\.\d+)?)\s*[xX*]\s*(\d+(?:\.\d+)?)$/;
-    const match = sizeVal.toLowerCase().trim().match(regex);
+    const kichThuocInput = document.getElementById('kichThuoc');
+    if (!kichThuocInput) return;
+
+    // 1. Làm sạch dữ liệu: Đổi dấu phẩy thành chấm, xóa khoảng trắng thừa
+    let val = kichThuocInput.value.trim().replace(',', '.').toLowerCase();
+    
+    // 2. Regex thoáng hơn: Chấp nhận cả dấu x, dấu *, dấu . hoặc khoảng cách
+    const regex = /^(\d+(?:\.\d+)?)\s*[x*]\s*(\d+(?:\.\d+)?)$/;
+    const match = val.match(regex);
+
     if (match) {
-        const autoQty = parseFloat((parseFloat(match[1]) * parseFloat(match[2])).toFixed(2));
-        document.getElementById('soLuong').value = autoQty;
+        const dai = parseFloat(match[1]);
+        const rong = parseFloat(match[2]);
+        
+        if (!isNaN(dai) && !isNaN(rong)) {
+            const result = parseFloat((dai * rong).toFixed(2));
+            document.getElementById('soLuong').value = result;
+            
+            const dg = document.getElementById('donGia').value || 0;
+            document.getElementById('tongTienHienThi').value = (result * dg).toLocaleString('vi-VN') + " VND";
+        }
     }
-    const sl = document.getElementById('soLuong').value;
-    const dg = document.getElementById('donGia').value;
-    const total = (Number(sl) || 0) * (Number(dg) || 0);
-    document.getElementById('tongTienHienThi').value = total.toLocaleString('vi-VN') + " VND";
     saveAllFields();
 }
 
@@ -248,15 +259,28 @@ function renderEditableTable(name) {
                 </thead>
                 <tbody>`;
     
-    let tAll = 0, pAll = 0;
+    let tAll = 0, pAll = 0; // Đảm bảo khởi tạo biến tính tổng
+
     currentTableData.forEach((row, index) => {
+        // Xử lý ngày tháng hiển thị: dd/mm/yyyy
+        let displayDate = row[0].toString();
+        if (displayDate.includes('T')) {
+            const d = new Date(displayDate);
+            displayDate = d.toLocaleDateString('vi-VN');
+        } else if (displayDate.includes(' ')) {
+            displayDate = displayDate.split(' ')[0];
+        }
+
         const dg = Number(row[6]?.toString().replace(/[^0-9]/g, '')) || 0;
         const sl = Number(row[5]) || 0;
         const p = Number(row[12]?.toString().replace(/[^0-9]/g, '')) || 0;
         const rowTotal = dg * sl;
 
+        tAll += rowTotal; // Cộng dồn tổng tiền
+        pAll += p;        // Cộng dồn đã trả
+
         html += `<tr>
-            <td data-label="Ngày" class="date">${row[0].split(' ')[0]}</td>
+            <td data-label="Ngày" class="date-cell">${displayDate}</td>
             <td data-label="Sản phẩm"><input class="bill-input bold" value="${row[2]}" oninput="currentTableData[${index}][2]=this.value"></td>
             <td data-label="Kích thước"><input class="bill-input" value="${row[3] || '-'}" oninput="handleTableSizeChange(${index}, this.value)"></td>
             <td data-label="Đơn giá"><input class="bill-input" type="number" value="${dg}" oninput="handleTablePriceChange(${index}, this.value)"></td>
@@ -264,7 +288,6 @@ function renderEditableTable(name) {
             <td data-label="Đã trả"><input class="bill-input paid" type="number" value="${p}" oninput="currentTableData[${index}][12]=this.value; updateTableSummary()"></td>
             <td data-label="Tổng" class="bold" id="table-total-${index}">${rowTotal.toLocaleString()}</td>
         </tr>`;
-        tAll += rowTotal; pAll += p;
     });
 
     const debt = tAll - pAll;
@@ -272,13 +295,13 @@ function renderEditableTable(name) {
     html += `<div class="bill-summary">
             <p>Tổng cộng: <b id="summary-tAll">${tAll.toLocaleString()} VND</b></p>
             <p class="paid">Đã thanh toán: <b id="summary-pAll">${pAll.toLocaleString()} VND</b></p>
-            <p class="total-row" id="summary-debt-row">Còn nợ: <span id="summary-debt">${debt.toLocaleString()}</span> VND</p>
+            <p class="total-row" id="summary-debt-row" style="color: ${debt > 0 ? 'var(--red)' : 'green'}">Còn nợ: <span id="summary-debt">${debt.toLocaleString()}</span> VND</p>
         </div>
         <p class="bill-footer">Thời gian xuất bill: ${new Date().toLocaleTimeString('vi-VN')} ${new Date().toLocaleDateString('vi-VN')}</p>
     </div>`;
 
     html += `
-    <div style="display: flex; gap: 10px; margin-top: 15px;">
+    <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
         <button onclick="saveChangesToSheet('${name}')" class="btn" style="background: #2ecc71; flex: 1; margin: 0;">
             <i class="fas fa-save"></i> LƯU THAY ĐỔI
         </button>
