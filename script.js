@@ -1,5 +1,5 @@
 const ADMIN_PASSWORD = "23682578"; 
-const scriptURL = 'https://script.google.com/macros/s/AKfycbwZXOEn-nXV28yCfFFNv5qhQFlHC6_h3JpOhJ5JHhh04Y-zv4_DsJUSfvSEO1Ij2bCP/exec';
+const scriptURL = 'https://script.google.com/macros/s/AKfycbxT22qo0siUE0JgxahasuDrK1X3Z5H61MYCyBM_0f8SbHGbe8ugrcXiUjwYHT794Gkv/exec';
 const allFields = ['hoTen', 'sanPham', 'kichThuoc', 'soLuong', 'donGia', 'ghiChu', 'nguoi', 'ngay', 'tinhTrang', 'thanhToan', 'daTra'];
 
 let isLockSync = false; 
@@ -97,24 +97,32 @@ async function updateStatusOnly(hoTen, ngayTao, newStatus, selectElement) {
 // --- 3. XỬ LÝ FORM NHẬP LIỆU ---
 function updateCalculation() {
     const kichThuocInput = document.getElementById('kichThuoc');
-    if (!kichThuocInput) return;
+    const soLuongInput = document.getElementById('soLuong');
+    const donGiaInput = document.getElementById('donGia');
+    if (!kichThuocInput || !soLuongInput) return;
 
-    let val = kichThuocInput.value.trim().replace(/,/g, '.').toLowerCase();
-    const parts = val.split(/[x*]/); 
+    let ktVal = kichThuocInput.value.trim().replace(/,/g, '.').toLowerCase();
+    const parts = ktVal.split(/[x*]/); 
 
     if (parts.length >= 2) {
         const numbers = parts.map(p => parseFloat(p.trim())).filter(n => !isNaN(n));
         if (numbers.length >= 2) {
+            // TÍNH TOÁN: Giữ nguyên số thực
             const result = numbers.reduce((total, num) => total * num, 1);
-            document.getElementById('soLuong').value = parseFloat(result.toFixed(2));
+            // HIỂN THỊ VÀO Ô SL: Dùng parseFloat để loại bỏ số 0 thừa (ví dụ 20.80 -> 20.8)
+            soLuongInput.value = parseFloat(result.toFixed(2));
         }
     }
 
-    const sl = document.getElementById('soLuong').value;
-    const dg = document.getElementById('donGia').value;
-    const total = (Number(sl) || 0) * (Number(dg) || 0);
+    // Lấy giá trị để tính Tổng tiền hiển thị
+    const sl = parseFloat(soLuongInput.value.toString().replace(/,/g, '.')) || 0;
+    const dg = parseFloat(donGiaInput.value.toString().replace(/,/g, '.')) || 0;
+    
+    const total = sl * dg;
     const hienThiTotal = document.getElementById('tongTienHienThi');
-    if (hienThiTotal) hienThiTotal.value = total.toLocaleString('vi-VN') + " VND";
+    if (hienThiTotal) {
+        hienThiTotal.value = total.toLocaleString('vi-VN') + " VND";
+    }
     saveAllFields();
 }
 
@@ -240,17 +248,16 @@ function renderEditableTable(name) {
             displayDate = displayDate.split(' ')[0];
         }
 
-        const dg = Number(row[6]?.toString().replace(/[^0-9]/g, '')) || 0;
-        
-        // FIX LỖI: KIỂM TRA SL NẾU BỊ SHEET BIẾN THÀNH NGÀY THÁNG
-        let sl = row[5];
-        if (isNaN(sl) || typeof sl === 'object') {
-            sl = parseFloat(row[5]) || 0;
-        } else {
-            sl = Number(sl) || 0;
-        }
+        // CHỈNH SỬA: Chấp nhận cả dấu phẩy và dấu chấm cho Đơn giá
+        const dg = Number(row[6]?.toString().replace(/,/g, '.').replace(/[^0-9.]/g, '')) || 0;
 
-        const p = Number(row[12]?.toString().replace(/[^0-9]/g, '')) || 0;
+        // FIX MẤU CHỐT: Xử lý số lượng lẻ (ví dụ 20,8 hoặc 20.8)
+        let slRaw = row[5] ? row[5].toString().replace(/,/g, '.') : "0";
+        let sl = parseFloat(slRaw) || 0;
+
+        // CHỈNH SỬA: Chấp nhận cả dấu phẩy và dấu chấm cho Đã trả
+        const p = Number(row[12]?.toString().replace(/,/g, '.').replace(/[^0-9.]/g, '')) || 0;
+        
         const rowTotal = dg * sl;
         tAll += rowTotal; pAll += p;
 
@@ -258,17 +265,17 @@ function renderEditableTable(name) {
             <td>${displayDate}</td>
             <td><input class="bill-input bold" value="${row[2]}" oninput="currentTableData[${index}][2]=this.value"></td>
             <td><input class="bill-input" value="${row[3] || '-'}" oninput="handleTableSizeChange(${index}, this.value)"></td>
-            <td><input class="bill-input" type="number" value="${dg}" oninput="handleTablePriceChange(${index}, this.value)"></td>
-            <td><input id="table-sl-${index}" class="bill-input" type="number" step="0.01" value="${sl}" oninput="currentTableData[${index}][5]=this.value; updateTableSummary()"></td>
-            <td><input class="bill-input paid" type="number" value="${p}" oninput="currentTableData[${index}][12]=this.value; updateTableSummary()"></td>
-            <td class="bold" id="table-total-${index}">${rowTotal.toLocaleString()}</td>
+            <td><input class="bill-input" type="number" step="any" value="${dg}" oninput="handleTablePriceChange(${index}, this.value)"></td>
+            <td><input id="table-sl-${index}" class="bill-input" type="number" step="any" value="${sl}" oninput="currentTableData[${index}][5]=this.value.replace(/,/g, '.'); updateTableSummary()"></td>
+            <td><input class="bill-input paid" type="number" step="any" value="${p}" oninput="currentTableData[${index}][12]=this.value.replace(/,/g, '.'); updateTableSummary()"></td>
+            <td class="bold" id="table-total-${index}">${rowTotal.toLocaleString('vi-VN')}</td>
             <td style="text-align:center;"><button onclick="deleteSingleRow('${name}', '${row[0]}', this)" style="border:none; background:none; color:var(--red); cursor:pointer;"><i class="fas fa-trash-alt"></i></button></td>
         </tr>`;
     });
 
     const debt = tAll - pAll;
-    html += `</tbody></table><div class="bill-summary"><p>Tổng cộng: <b id="summary-tAll">${tAll.toLocaleString()} VND</b></p><p class="paid">Đã thanh toán: <b id="summary-pAll">${pAll.toLocaleString()} VND</b></p><p class="total-row" id="summary-debt-row" style="color: ${debt > 0 ? 'var(--red)' : 'green'}">Còn nợ: <span id="summary-debt">${debt.toLocaleString()}</span> VND</p></div><p class="bill-footer">Thời gian xuất bill: ${new Date().toLocaleTimeString('vi-VN')} ${new Date().toLocaleDateString('vi-VN')}</p></div>`;
-    html += `<div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;"><button onclick="saveChangesToSheet('${name}')" class="btn" style="background: #2ecc71; flex: 1; margin: 0;"><i class="fas fa-save"></i> LƯU THAY ĐỔI</button><button onclick="clearCustomerData('${name}')" class="btn" style="background: #34495e; flex: 1; margin: 0;"><i class="fas fa-check-double"></i> XÓA LỊCH SỬ</button><button onclick="downloadBillImage('${name}')" class="btn btn-download" style="flex: 1; margin: 0;"><i class="fas fa-camera"></i> XUẤT HÓA ĐƠN</button></div>`;
+    html += `</tbody></table><div class="bill-summary"><p>Tổng cộng: <b id="summary-tAll">${tAll.toLocaleString('vi-VN')} VND</b></p><p class="paid">Đã thanh toán: <b id="summary-pAll">${pAll.toLocaleString('vi-VN')} VND</b></p><p class="total-row" id="summary-debt-row" style="color: ${debt > 0 ? 'var(--red)' : 'green'}">Còn nợ: <span id="summary-debt">${debt.toLocaleString('vi-VN')}</span> VND</p></div><p class="bill-footer">Thời gian xuất bill: ${new Date().toLocaleTimeString('vi-VN')} ${new Date().toLocaleDateString('vi-VN')}</p></div>`;
+    html += `<div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;"><button onclick="saveChangesToSheet('${name}')" class="btn" style="background: #2ecc71; flex: 1; margin: 0;"><i class="fas fa-save"></i> LƯU THAY ĐỔI</button><button onclick="clearCustomerData('${name}')" class="btn" style="background: #34495e; flex: 1; margin: 0;"><i class="fas fa-check-double"></i> THANH TOÁN XONG & XÓA THÔNG TIN </button><button onclick="downloadBillImage('${name}')" class="btn btn-download" style="flex: 1; margin: 0;"><i class="fas fa-camera"></i> XUẤT HÓA ĐƠN</button></div>`;
     resultDiv.innerHTML = html;
 }
 
@@ -279,7 +286,10 @@ function handleTableSizeChange(index, val) {
     if (parts.length >= 2) {
         const nums = parts.map(p => parseFloat(p.trim())).filter(n => !isNaN(n));
         if (nums.length >= 2) {
-            currentTableData[index][5] = parseFloat(nums.reduce((a, b) => a * b, 1).toFixed(2));
+            // Gán số thực vào mảng dữ liệu
+            const result = nums.reduce((a, b) => a * b, 1);
+            currentTableData[index][5] = parseFloat(result.toFixed(2));
+            
             const slEl = document.getElementById(`table-sl-${index}`);
             if (slEl) slEl.value = currentTableData[index][5];
         }
@@ -295,11 +305,13 @@ function handleTablePriceChange(index, val) {
 function updateTableSummary() {
     let tAll = 0, pAll = 0;
     currentTableData.forEach((row, index) => {
-        // ÉP KIỂU SỐ AN TOÀN TRONG KHI TÍNH TỔNG
-        const dg = Number(row[6]) || 0;
-        const sl = Number(row[5]) || 0;
+        // Sử dụng Regex cho phép dấu chấm
+        const dg = Number(row[6]?.toString().replace(/[^0-9.]/g, '')) || 0;
+        const sl = Number(row[5]?.toString().replace(/[^0-9.]/g, '')) || 0;
         const total = dg * sl;
-        tAll += total; pAll += (Number(row[12]) || 0);
+        tAll += total; 
+        pAll += Number(row[12]?.toString().replace(/[^0-9.]/g, '')) || 0;
+        
         const el = document.getElementById(`table-total-${index}`);
         if (el) el.innerText = total.toLocaleString();
     });
