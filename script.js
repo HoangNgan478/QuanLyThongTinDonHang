@@ -1,5 +1,5 @@
 const ADMIN_PASSWORD = "23682578"; 
-const scriptURL = 'https://script.google.com/macros/s/AKfycbyXN8Vi4Aod0y13PgVXyKxkf82X36AiOQmCjrYRcOjGMvhct501AV5oOoQbILhGtgvJ/exec';
+const scriptURL = 'https://script.google.com/macros/s/AKfycbwZXOEn-nXV28yCfFFNv5qhQFlHC6_h3JpOhJ5JHhh04Y-zv4_DsJUSfvSEO1Ij2bCP/exec';
 const allFields = ['hoTen', 'sanPham', 'kichThuoc', 'soLuong', 'donGia', 'ghiChu', 'nguoi', 'ngay', 'tinhTrang', 'thanhToan', 'daTra'];
 
 let isLockSync = false; 
@@ -332,11 +332,27 @@ async function saveChangesToSheet(customerName) {
 }
 
 async function deleteSingleRow(hoTen, ngayTao, btn) {
-    if (prompt("Nhập mật khẩu để xóa:") !== ADMIN_PASSWORD) return;
+    if (prompt("Nhập mật khẩu để xóa đơn lẻ:") !== ADMIN_PASSWORD) return;
+    
+    const originalContent = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; // Hiện icon xoay khi đang xóa
+
     try {
-        await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: "deleteSingle", hoTen: hoTen, ngayTao: ngayTao }) });
-        setTimeout(() => { searchCustomer(); loadMonitorTable(); }, 1500);
-    } catch (e) { alert("Lỗi!"); }
+        await fetch(scriptURL, { 
+            method: 'POST', 
+            mode: 'no-cors', 
+            body: JSON.stringify({ action: "deleteSingle", hoTen: hoTen, ngayTao: ngayTao }) 
+        });
+        
+        setTimeout(() => { 
+            alert("Đã xóa xong!");
+            searchCustomer(); 
+            loadMonitorTable(); 
+        }, 1500);
+    } catch (e) { 
+        alert("Lỗi kết nối!"); 
+        btn.innerHTML = originalContent;
+    }
 }
 
 async function clearCustomerData(name) {
