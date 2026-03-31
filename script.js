@@ -1,4 +1,4 @@
-const ADMIN_PASSWORD = "23682578"; 
+const ADMIN_PASSWORD = "12346"; 
 const scriptURL = 'https://script.google.com/macros/s/AKfycbxT22qo0siUE0JgxahasuDrK1X3Z5H61MYCyBM_0f8SbHGbe8ugrcXiUjwYHT794Gkv/exec';
 const allFields = ['hoTen', 'sanPham', 'kichThuoc', 'soLuong', 'donGia', 'ghiChu', 'nguoi', 'ngay', 'tinhTrang', 'thanhToan', 'daTra'];
 
