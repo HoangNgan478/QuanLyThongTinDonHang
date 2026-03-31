@@ -151,6 +151,7 @@ document.getElementById('mainForm').addEventListener('submit', async (e) => {
         hoTen: document.getElementById('hoTen').value,
         sanPham: document.getElementById('sanPham').value,
         kichThuoc: document.getElementById('kichThuoc').value,
+        // ĐẢM BẢO GỬI SỐ THỰC
         soLuong: parseFloat(document.getElementById('soLuong').value) || 0,
         donGia: parseFloat(document.getElementById('donGia').value) || 0,
         ghiChu: document.getElementById('ghiChu').value,
@@ -274,7 +275,21 @@ function renderEditableTable(name) {
 
     const debt = tAll - pAll;
     html += `</tbody></table><div class="bill-summary"><p>Tổng cộng: <b id="summary-tAll">${tAll.toLocaleString('vi-VN')} VND</b></p><p class="paid">Đã thanh toán: <b id="summary-pAll">${pAll.toLocaleString('vi-VN')} VND</b></p><p class="total-row" id="summary-debt-row" style="color: ${debt > 0 ? 'var(--red)' : 'green'}">Còn nợ: <span id="summary-debt">${debt.toLocaleString('vi-VN')}</span> VND</p></div><p class="bill-footer">Thời gian xuất bill: ${new Date().toLocaleTimeString('vi-VN')} ${new Date().toLocaleDateString('vi-VN')}</p></div>`;
-    html += `<div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;"><button onclick="saveChangesToSheet('${name}')" class="btn" style="background: #2ecc71; flex: 1; margin: 0;"><i class="fas fa-save"></i> LƯU THAY ĐỔI</button><button onclick="clearCustomerData('${name}')" class="btn" style="background: #34495e; flex: 1; margin: 0;"><i class="fas fa-check-double"></i> THANH TOÁN XONG & XÓA THÔNG TIN </button><button onclick="downloadBillImage('${name}')" class="btn btn-download" style="flex: 1; margin: 0;"><i class="fas fa-camera"></i> XUẤT HÓA ĐƠN</button></div>`;
+    html += `<div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
+        <button onclick="recalculateAllRows()" class="btn" style="background: #f39c12; flex: 1; margin: 0;">
+            <i class="fas fa-sync-alt"></i> CẬP NHẬT TÍNH TOÁN
+        </button>
+        <button onclick="saveChangesToSheet('${name}')" class="btn" style="background: #2ecc71; flex: 1; margin: 0;">
+            <i class="fas fa-save"></i> LƯU THAY ĐỔI
+        </button>
+        <button onclick="clearCustomerData('${name}')" class="btn" style="background: #34495e; flex: 1; margin: 0;">
+            <i class="fas fa-check-double"></i> THANH TOÁN XONG & XÓA THÔNG TIN 
+        </button>
+        <button onclick="downloadBillImage('${name}')" class="btn btn-download" style="flex: 1; margin: 0;">
+            <i class="fas fa-camera"></i> XUẤT HÓA ĐƠN
+        </button>
+    </div>`;
+
     resultDiv.innerHTML = html;
 }
 
@@ -285,6 +300,7 @@ function handleTableSizeChange(index, val) {
     if (parts.length >= 2) {
         const nums = parts.map(p => parseFloat(p.trim())).filter(n => !isNaN(n));
         if (nums.length >= 2) {
+            // Gán số thực vào mảng dữ liệu
             const result = nums.reduce((a, b) => a * b, 1);
             currentTableData[index][5] = parseFloat(result.toFixed(2));
             
@@ -317,6 +333,35 @@ function updateTableSummary() {
     document.getElementById('summary-tAll').innerText = tAll.toLocaleString() + " VND";
     document.getElementById('summary-pAll').innerText = pAll.toLocaleString() + " VND";
     document.getElementById('summary-debt').innerText = debt.toLocaleString();
+}
+
+function recalculateAllRows() {
+    currentTableData.forEach((row, index) => {
+        // 1. Xử lý Kích thước -> Số lượng
+        let ktVal = row[3] ? row[3].toString().trim().replace(/,/g, '.').toLowerCase() : "";
+        const parts = ktVal.split(/[x*]/);
+
+        if (parts.length >= 2) {
+            const numbers = parts.map(p => parseFloat(p.trim())).filter(n => !isNaN(n));
+            if (numbers.length >= 2) {
+                // Tính lại Số lượng thực tế
+                const newSl = parseFloat(numbers.reduce((total, num) => total * num, 1).toFixed(2));
+                currentTableData[index][5] = newSl;
+                
+                // Cập nhật giá trị vào ô input Số lượng trên giao diện
+                const slInput = document.getElementById(`table-sl-${index}`);
+                if (slInput) slInput.value = newSl;
+            }
+        }
+        
+        // 2. Đảm bảo Đơn giá và Đã trả ở dạng số chuẩn
+        currentTableData[index][6] = parseFloat(row[6]?.toString().replace(/,/g, '.').replace(/[^0-9.]/g, '')) || 0;
+        currentTableData[index][12] = parseFloat(row[12]?.toString().replace(/,/g, '.').replace(/[^0-9.]/g, '')) || 0;
+    });
+
+    // 3. Gọi hàm tính tổng bill cuối cùng để cập nhật các con số hiển thị
+    updateTableSummary();
+    alert("Đã cập nhật lại toàn bộ tính năng kích thước và số lượng!");
 }
 
 async function saveChangesToSheet(customerName) {
@@ -396,5 +441,4 @@ allFields.forEach(id => {
         if(['kichThuoc', 'soLuong', 'donGia'].includes(id)) updateCalculation();
         saveAllFields();
     });
-
 });
