@@ -61,11 +61,11 @@ async function loadMonitorTable() {
         allData.forEach((row) => {
             const status = row[10] || 'Duyệt';
             html += `<tr>
-                <td class="customer-cell"><b>${row[1]}</b></td>
-                <td>${row[2]}</td>
-                <td><span class="size-tag">${row[3] || '-'}</span></td>
-                <td class="qty-cell">${row[5]}</td>
-                <td>
+                <td class="customer-cell" style="white-space: normal; word-break: break-word; vertical-align: top; text-align: left; padding: 8px;"><b>${row[1]}</b></td>
+                <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: left; padding: 8px;">${row[2]}</td>
+                <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: center; padding: 8px;"><span class="size-tag">${row[3] || '-'}</span></td>
+                <td class="qty-cell" style="white-space: normal; word-break: break-word; vertical-align: top; text-align: center; padding: 8px;">${row[5]}</td>
+                <td style="vertical-align: top; padding: 8px; text-align: center;">
                     <select onchange="updateStatusOnly('${row[1]}', '${row[0]}', this.value, this)" 
                             class="status-select ${getStatusClass(status)}">
                         <option value="Duyệt" ${status === 'Duyệt' ? 'selected' : ''}>Duyệt</option>
@@ -103,22 +103,21 @@ function updateCalculation() {
 
     let ktVal = kichThuocInput.value.trim().replace(/,/g, '.').toLowerCase();
     const parts = ktVal.split(/[x*]/); 
+    let area = 1;
 
     if (parts.length >= 2) {
         const numbers = parts.map(p => parseFloat(p.trim())).filter(n => !isNaN(n));
         if (numbers.length >= 2) {
-            // TÍNH TOÁN: Giữ nguyên số thực
-            const result = numbers.reduce((total, num) => total * num, 1);
-            // HIỂN THỊ VÀO Ô SL: Dùng parseFloat để loại bỏ số 0 thừa (ví dụ 20.80 -> 20.8)
-            soLuongInput.value = parseFloat(result.toFixed(2));
+            area = numbers.reduce((total, num) => total * num, 1);
         }
+    } else if (parts.length === 1 && !isNaN(parseFloat(parts[0]))) {
+        area = parseFloat(parts[0]);
     }
 
-    // Lấy giá trị để tính Tổng tiền hiển thị
     const sl = parseFloat(soLuongInput.value.toString().replace(/,/g, '.')) || 0;
     const dg = parseFloat(donGiaInput.value.toString().replace(/,/g, '.')) || 0;
     
-    const total = sl * dg;
+    const total = area * sl * dg;
     const hienThiTotal = document.getElementById('tongTienHienThi');
     if (hienThiTotal) {
         hienThiTotal.value = total.toLocaleString('vi-VN') + " VND";
@@ -151,7 +150,6 @@ document.getElementById('mainForm').addEventListener('submit', async (e) => {
         hoTen: document.getElementById('hoTen').value,
         sanPham: document.getElementById('sanPham').value,
         kichThuoc: document.getElementById('kichThuoc').value,
-        // ĐẢM BẢO GỬI SỐ THỰC
         soLuong: parseFloat(document.getElementById('soLuong').value) || 0,
         donGia: parseFloat(document.getElementById('donGia').value) || 0,
         ghiChu: document.getElementById('ghiChu').value,
@@ -237,44 +235,74 @@ async function searchCustomer() {
 
 function renderEditableTable(name) {
     const resultDiv = document.getElementById('invoiceResult');
-    let html = `<div id="billArea"><h3>Lịch sử đơn hàng: ${name}</h3><table class="bill-table"><thead><tr><th>Ngày</th><th>Sản phẩm</th><th>Kích thước</th><th>Đơn giá</th><th>SL</th><th>Đã trả</th><th>Tổng</th><th>Xóa</th></tr></thead><tbody>`;
+    let html = `<div id="billArea" style="width: 100%; font-family: sans-serif; overflow-x: auto;">
+    <h3>Lịch sử đơn hàng: ${name}</h3>
+    <table class="bill-table" style="width:100%; table-layout: fixed; border-collapse: collapse; min-width: 650px;">
+    <thead>
+        <tr style="background-color: #f8f9fa;">
+            <th style="width: 16%; padding: 8px; border-bottom: 2px solid #ddd; text-align: center;">Ngày nhập</th>
+            <th style="width: 23%; padding: 8px; border-bottom: 2px solid #ddd; text-align: left;">Sản phẩm</th>
+            <th style="width: 16%; padding: 8px; border-bottom: 2px solid #ddd; text-align: center;">Kích thước</th>
+            <th style="width: 13%; padding: 8px; border-bottom: 2px solid #ddd; text-align: right;">Đơn giá</th>
+            <th style="width: 9%; padding: 8px; border-bottom: 2px solid #ddd; text-align: center;">SL</th>
+            <th style="width: 11%; padding: 8px; border-bottom: 2px solid #ddd; text-align: right;">Đã trả</th>
+            <th style="width: 14%; padding: 8px; border-bottom: 2px solid #ddd; text-align: right;">Tổng</th>
+            <th style="width: 8%; padding: 8px; border-bottom: 2px solid #ddd; text-align: center;">Xóa</th>
+        </tr>
+    </thead><tbody>`;
     let tAll = 0, pAll = 0;
 
     currentTableData.forEach((row, index) => {
         let displayDate = row[0] ? row[0].toString() : "";
+        let inputDateVal = ""; // Tạo chuỗi định dạng yyyy-MM-dd cho thẻ input date
+        
+        // Trích xuất ngày từ chuỗi trả về để nạp vào ô chọn lịch
         if (displayDate.includes('T')) {
-            displayDate = new Date(displayDate).toLocaleDateString('vi-VN');
-        } else if (displayDate.includes(' ')) {
-            displayDate = displayDate.split(' ')[0];
+            let dObj = new Date(displayDate);
+            inputDateVal = dObj.getFullYear() + '-' + String(dObj.getMonth() + 1).padStart(2, '0') + '-' + String(dObj.getDate()).padStart(2, '0');
+        } else {
+            let pureDateStr = displayDate.includes(' ') ? displayDate.split(' ')[0] : displayDate;
+            let dateParts = pureDateStr.split('/');
+            if (dateParts.length === 3) {
+                inputDateVal = dateParts[2] + '-' + dateParts[1] + '-' + dateParts[0];
+            }
         }
 
-        // CHỈNH SỬA: Chấp nhận cả dấu phẩy và dấu chấm cho Đơn giá
         const dg = Number(row[6]?.toString().replace(/,/g, '.').replace(/[^0-9.]/g, '')) || 0;
-
-        // FIX MẤU CHỐT: Xử lý số lượng lẻ (ví dụ 20,8 hoặc 20.8)
         let slRaw = row[5] ? row[5].toString().replace(/,/g, '.') : "0";
         let sl = parseFloat(slRaw) || 0;
-
-        // CHỈNH SỬA: Chấp nhận cả dấu phẩy và dấu chấm cho Đã trả
         const p = Number(row[12]?.toString().replace(/,/g, '.').replace(/[^0-9.]/g, '')) || 0;
         
-        const rowTotal = dg * sl;
+        let ktVal = row[3] ? row[3].toString().trim().replace(/,/g, '.').toLowerCase() : "";
+        const parts = ktVal.split(/[x*]/);
+        let currentArea = 1;
+        if (parts.length >= 2) {
+            const numbers = parts.map(p => parseFloat(p.trim())).filter(n => !isNaN(n));
+            if (numbers.length >= 2) currentArea = numbers.reduce((a, b) => a * b, 1);
+        } else if (parts.length === 1 && !isNaN(parseFloat(parts[0]))) {
+            currentArea = parseFloat(parts[0]);
+        }
+
+        const rowTotal = currentArea * sl * dg;
         tAll += rowTotal; pAll += p;
 
-        html += `<tr>
-            <td>${displayDate}</td>
-            <td><input class="bill-input bold" value="${row[2]}" oninput="currentTableData[${index}][2]=this.value"></td>
-            <td><input class="bill-input" value="${row[3] || '-'}" oninput="handleTableSizeChange(${index}, this.value)"></td>
-            <td><input class="bill-input" type="number" step="any" value="${dg}" oninput="handleTablePriceChange(${index}, this.value)"></td>
-            <td><input id="table-sl-${index}" class="bill-input" type="number" step="any" value="${sl}" oninput="currentTableData[${index}][5]=this.value.replace(/,/g, '.'); updateTableSummary()"></td>
-            <td><input class="bill-input paid" type="number" step="any" value="${p}" oninput="currentTableData[${index}][12]=this.value.replace(/,/g, '.'); updateTableSummary()"></td>
-            <td class="bold" id="table-total-${index}">${rowTotal.toLocaleString('vi-VN')}</td>
-            <td style="text-align:center;"><button onclick="deleteSingleRow('${name}', '${row[0]}', this)" style="border:none; background:none; color:var(--red); cursor:pointer;"><i class="fas fa-trash-alt"></i></button></td>
+        html += `<tr style="border-bottom: 1px solid #eee;">
+            <td style="vertical-align: top; text-align: center; padding: 6px 4px;">
+                <input type="date" class="bill-input" value="${inputDateVal}" oninput="handleTableDateChange(${index}, this.value)" style="width: 100%; box-sizing: border-box; font-size: 12px; text-align: center; font-family: sans-serif;">
+            </td>
+            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: left; padding: 6px 4px;"><input class="bill-input bold" value="${row[2]}" oninput="currentTableData[${index}][2]=this.value" style="width:95%; max-width:100%; box-sizing:border-box;"></td>
+            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: center; padding: 6px 4px;"><input class="bill-input" value="${row[3] || '-'}" oninput="currentTableData[${index}][3]=this.value; updateTableSummary()" style="width:95%; text-align:center; box-sizing:border-box;"></td>
+            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: right; padding: 6px 4px;"><input class="bill-input" type="number" step="any" value="${dg}" oninput="handleTablePriceChange(${index}, this.value)" style="width:95%; text-align:right; box-sizing:border-box;"></td>
+            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: center; padding: 6px 4px;"><input id="table-sl-${index}" class="bill-input" type="number" step="any" value="${sl}" oninput="currentTableData[${index}][5]=this.value.replace(/,/g, '.'); updateTableSummary()" style="width:95%; text-align:center; box-sizing:border-box;"></td>
+            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: right; padding: 6px 4px;"><input class="bill-input paid" type="number" step="any" value="${p}" oninput="currentTableData[${index}][12]=this.value.replace(/,/g, '.'); updateTableSummary()" style="width:95%; text-align:right; box-sizing:border-box;"></td>
+            <td class="bold" id="table-total-${index}" style="white-space: normal; word-break: break-word; vertical-align: top; text-align: right; padding: 12px 4px; font-size: 13px;">${rowTotal.toLocaleString('vi-VN')}</td>
+            <td style="text-align:center; vertical-align: top; padding: 10px 4px;"><button onclick="deleteSingleRow('${name}', '${row[0]}', this)" style="border:none; background:none; color:var(--red); cursor:pointer;"><i class="fas fa-trash-alt"></i></button></td>
         </tr>`;
     });
 
     const debt = tAll - pAll;
     html += `</tbody></table><div class="bill-summary"><p>Tổng cộng: <b id="summary-tAll">${tAll.toLocaleString('vi-VN')} VND</b></p><p class="paid">Đã thanh toán: <b id="summary-pAll">${pAll.toLocaleString('vi-VN')} VND</b></p><p class="total-row" id="summary-debt-row" style="color: ${debt > 0 ? 'var(--red)' : 'green'}">Còn nợ: <span id="summary-debt">${debt.toLocaleString('vi-VN')}</span> VND</p></div><p class="bill-footer">Thời gian xuất bill: ${new Date().toLocaleTimeString('vi-VN')} ${new Date().toLocaleDateString('vi-VN')}</p></div>`;
+    
     html += `<div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
         <button onclick="recalculateAllRows()" class="btn" style="background: #f39c12; flex: 1; margin: 0;">
             <i class="fas fa-sync-alt"></i> CẬP NHẬT TÍNH TOÁN
@@ -285,8 +313,8 @@ function renderEditableTable(name) {
         <button onclick="clearCustomerData('${name}')" class="btn" style="background: #34495e; flex: 1; margin: 0;">
             <i class="fas fa-check-double"></i> THANH TOÁN XONG & XÓA THÔNG TIN 
         </button>
-        <button onclick="downloadBillImage('${name}')" class="btn btn-download" style="flex: 1; margin: 0;">
-            <i class="fas fa-camera"></i> XUẤT HÓA ĐƠN
+        <button onclick="downloadBillExcel('${name}')" class="btn" style="background: #1f7244; color: white; flex: 1; margin: 0;">
+            <i class="fas fa-file-excel"></i> XUẤT HÓA ĐƠN EXCEL
         </button>
     </div>`;
 
@@ -294,20 +322,22 @@ function renderEditableTable(name) {
 }
 
 // --- 5. LOGIC BẢNG & ĐỒNG BỘ ---
+// THÊM MỚI: Hàm cập nhật chuỗi thời gian khi thay đổi ô input date trên bảng
+function handleTableDateChange(index, val) {
+    if (!val) return;
+    let parts = val.split('-'); // Định dạng yyyy-mm-dd từ ô input
+    if (parts.length === 3) {
+        const now = new Date();
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        const ss = String(now.getSeconds()).padStart(2, '0');
+        // Đồng bộ ngược lại cấu trúc chuỗi ngày tháng dd/MM/yyyy HH:mm:ss của hệ thống
+        currentTableData[index][0] = `${parts[2]}/${parts[1]}/${parts[0]} ${hh}:${mm}:${ss}`;
+    }
+}
+
 function handleTableSizeChange(index, val) {
     currentTableData[index][3] = val;
-    const parts = val.toLowerCase().replace(/,/g, '.').split(/[x*]/);
-    if (parts.length >= 2) {
-        const nums = parts.map(p => parseFloat(p.trim())).filter(n => !isNaN(n));
-        if (nums.length >= 2) {
-            // Gán số thực vào mảng dữ liệu
-            const result = nums.reduce((a, b) => a * b, 1);
-            currentTableData[index][5] = parseFloat(result.toFixed(2));
-            
-            const slEl = document.getElementById(`table-sl-${index}`);
-            if (slEl) slEl.value = currentTableData[index][5];
-        }
-    }
     updateTableSummary();
 }
 
@@ -319,49 +349,35 @@ function handleTablePriceChange(index, val) {
 function updateTableSummary() {
     let tAll = 0, pAll = 0;
     currentTableData.forEach((row, index) => {
-        // Sử dụng Regex cho phép dấu chấm
         const dg = Number(row[6]?.toString().replace(/[^0-9.]/g, '')) || 0;
         const sl = Number(row[5]?.toString().replace(/[^0-9.]/g, '')) || 0;
-        const total = dg * sl;
+        
+        let ktVal = row[3] ? row[3].toString().trim().replace(/,/g, '.').toLowerCase() : "";
+        const parts = ktVal.split(/[x*]/);
+        let currentArea = 1;
+        if (parts.length >= 2) {
+            const numbers = parts.map(p => parseFloat(p.trim())).filter(n => !isNaN(n));
+            if (numbers.length >= 2) currentArea = numbers.reduce((a, b) => a * b, 1);
+        } else if (parts.length === 1 && !isNaN(parseFloat(parts[0]))) {
+            currentArea = parseFloat(parts[0]);
+        }
+
+        const total = currentArea * sl * dg;
         tAll += total; 
         pAll += Number(row[12]?.toString().replace(/[^0-9.]/g, '')) || 0;
         
         const el = document.getElementById(`table-total-${index}`);
-        if (el) el.innerText = total.toLocaleString();
+        if (el) el.innerText = total.toLocaleString('vi-VN');
     });
     const debt = tAll - pAll;
-    document.getElementById('summary-tAll').innerText = tAll.toLocaleString() + " VND";
-    document.getElementById('summary-pAll').innerText = pAll.toLocaleString() + " VND";
-    document.getElementById('summary-debt').innerText = debt.toLocaleString();
+    document.getElementById('summary-tAll').innerText = tAll.toLocaleString('vi-VN') + " VND";
+    document.getElementById('summary-pAll').innerText = pAll.toLocaleString('vi-VN') + " VND";
+    document.getElementById('summary-debt').innerText = debt.toLocaleString('vi-VN');
 }
 
 function recalculateAllRows() {
-    currentTableData.forEach((row, index) => {
-        // 1. Xử lý Kích thước -> Số lượng
-        let ktVal = row[3] ? row[3].toString().trim().replace(/,/g, '.').toLowerCase() : "";
-        const parts = ktVal.split(/[x*]/);
-
-        if (parts.length >= 2) {
-            const numbers = parts.map(p => parseFloat(p.trim())).filter(n => !isNaN(n));
-            if (numbers.length >= 2) {
-                // Tính lại Số lượng thực tế
-                const newSl = parseFloat(numbers.reduce((total, num) => total * num, 1).toFixed(2));
-                currentTableData[index][5] = newSl;
-                
-                // Cập nhật giá trị vào ô input Số lượng trên giao diện
-                const slInput = document.getElementById(`table-sl-${index}`);
-                if (slInput) slInput.value = newSl;
-            }
-        }
-        
-        // 2. Đảm bảo Đơn giá và Đã trả ở dạng số chuẩn
-        currentTableData[index][6] = parseFloat(row[6]?.toString().replace(/,/g, '.').replace(/[^0-9.]/g, '')) || 0;
-        currentTableData[index][12] = parseFloat(row[12]?.toString().replace(/,/g, '.').replace(/[^0-9.]/g, '')) || 0;
-    });
-
-    // 3. Gọi hàm tính tổng bill cuối cùng để cập nhật các con số hiển thị
     updateTableSummary();
-    alert("Đã cập nhật lại toàn bộ tính năng kích thước và số lượng!");
+    alert("Đã cập nhật lại toàn bộ!");
 }
 
 async function saveChangesToSheet(customerName) {
@@ -372,7 +388,7 @@ async function saveChangesToSheet(customerName) {
         sanPham: row[2], 
         kichThuoc: row[3], 
         ghiChu: row[4], 
-        soLuong: parseFloat(row[5]) || 0, // GỬI DẠNG SỐ
+        soLuong: parseFloat(row[5]) || 0, 
         donGia: parseFloat(row[6]) || 0, 
         nguoiPhanCong: row[8], 
         ngayGiao: row[9], 
@@ -390,7 +406,7 @@ async function deleteSingleRow(hoTen, ngayTao, btn) {
     if (prompt("Nhập mật khẩu để xóa đơn lẻ:") !== ADMIN_PASSWORD) return;
     
     const originalContent = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; // Hiện icon xoay khi đang xóa
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
     try {
         await fetch(scriptURL, { 
@@ -418,15 +434,86 @@ async function clearCustomerData(name) {
     } catch (e) { alert("Lỗi!"); }
 }
 
-function downloadBillImage(name) {
-    const el = document.getElementById('billArea');
-    if (typeof html2canvas === 'undefined') { alert("Vui lòng đợi 2s nạp thư viện!"); return; }
-    html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => {
-        const link = document.createElement('a');
-        link.download = `Bill_${name}.png`;
-        link.href = canvas.toDataURL("image/png");
-        link.click();
+// --- CẢI TIẾN: FILE EXCEL ĐƯỢC PHÂN TÁCH HÀNG NGHÌN THEO ĐỊNH DẠNG #.##0 CHUẨN KẾ TOÁN ---
+function downloadBillExcel(name) {
+    const table = document.querySelector("#billArea table");
+    if (!table) { alert("Không tìm thấy dữ liệu bảng!"); return; }
+    
+    const tAll = parseFloat(document.getElementById("summary-tAll")?.innerText.replace(/[^0-9]/g, '')) || 0;
+    const pAll = parseFloat(document.getElementById("summary-pAll")?.innerText.replace(/[^0-9]/g, '')) || 0;
+    const debt = tAll - pAll;
+
+    let excelTemplate = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            .num-format { mso-number-format:"\\#\\,\\#\\#0"; text-align: right; }
+            .txt-center { text-align: center; }
+            .txt-left { text-align: left; }
+        </style>
+    </head>
+    <body>
+        <h3>Lịch sử đơn hàng: ${name}</h3>
+        <table border="1" style="border-collapse: collapse; font-family: sans-serif;">
+            <thead>
+                <tr style="background-color: #f2f2f2; font-weight: bold;">
+                    <th style="padding: 6px;">Ngày</th>
+                    <th style="padding: 6px;">Sản phẩm</th>
+                    <th style="padding: 6px;">Kích thước</th>
+                    <th style="padding: 6px;">Đơn giá</th>
+                    <th style="padding: 6px;">Số lượng</th>
+                    <th style="padding: 6px;">Đã trả</th>
+                    <th style="padding: 6px;">Tổng cộng</th>
+                </tr>
+            </thead>
+            <tbody>`;
+
+    currentTableData.forEach((row) => {
+        let displayDate = row[0] ? row[0].toString() : "";
+        if (displayDate.includes('T')) {
+            displayDate = new Date(displayDate).toLocaleDateString('vi-VN');
+        } else if (displayDate.includes(' ')) {
+            displayDate = displayDate.split(' ')[0];
+        }
+        
+        const dg = Number(row[6]?.toString().replace(/[^0-9.]/g, '')) || 0;
+        const sl = Number(row[5]?.toString().replace(/[^0-9.]/g, '')) || 0;
+        const paid = Number(row[12]?.toString().replace(/[^0-9.]/g, '')) || 0;
+        
+        let ktVal = row[3] ? row[3].toString().trim().replace(/,/g, '.').toLowerCase() : "";
+        const parts = ktVal.split(/[x*]/);
+        let area = 1;
+        if (parts.length >= 2) {
+            const numbers = parts.map(p => parseFloat(p.trim())).filter(n => !isNaN(n));
+            if (numbers.length >= 2) area = numbers.reduce((a, b) => a * b, 1);
+        } else if (parts.length === 1 && !isNaN(parseFloat(parts[0]))) {
+            area = parseFloat(parts[0]);
+        }
+        
+        const total = area * sl * dg;
+
+        excelTemplate += `<tr>
+            <td class="txt-center" style="padding: 4px;">${displayDate}</td>
+            <td class="txt-left" style="padding: 4px;">${row[2]}</td>
+            <td class="txt-center" style="padding: 4px;">${row[3] || '-'}</td>
+            <td class="num-format" style="padding: 4px;">${dg}</td>
+            <td class="txt-center" style="padding: 4px;">${sl}</td>
+            <td class="num-format" style="padding: 4px;">${paid}</td>
+            <td class="num-format" style="padding: 4px; font-weight: bold;">${total}</td>
+        </tr>`;
     });
+
+    excelTemplate += `<tr><td colspan="7" style="border: none; padding: 8px;"></td></tr>
+                      <tr><td colspan="5" style="border: none;"></td><td style="padding: 4px; background-color: #f9f9f9;"><b>Tổng cộng:</b></td><td class="num-format" style="padding: 4px; background-color: #f9f9f9; font-weight: bold;">${tAll}</td></tr>
+                      <tr><td colspan="5" style="border: none;"></td><td style="padding: 4px; background-color: #f9f9f9;"><b>Đã trả:</b></td><td class="num-format" style="padding: 4px; background-color: #f9f9f9; font-weight: bold;">${pAll}</td></tr>
+                      <tr><td colspan="5" style="border: none;"></td><td style="padding: 4px; background-color: #fff2f2; color: red;"><b>Còn nợ:</b></td><td class="num-format" style="padding: 4px; background-color: #fff2f2; font-weight: bold; color: red;">${debt}</td></tr>
+                      </tbody></table></body></html>`;
+
+    const blob = new Blob([excelTemplate], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `Bill_${name.replace(/\s+/g, '_')}.xls`;
+    link.click();
 }
 
 // --- 6. KHỞI CHẠY ---
