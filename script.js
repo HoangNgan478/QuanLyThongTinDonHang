@@ -1,18 +1,21 @@
 const ADMIN_PASSWORD = "12346"; 
-const scriptURL = 'https://script.google.com/macros/s/AKfycbxT22qo0siUE0JgxahasuDrK1X3Z5H61MYCyBM_0f8SbHGbe8ugrcXiUjwYHT794Gkv/exec';
-const allFields = ['hoTen', 'sanPham', 'kichThuoc', 'soLuong', 'donGia', 'ghiChu', 'nguoi', 'ngay', 'tinhTrang', 'thanhToan', 'daTra'];
+const scriptURL = 'https://script.google.com/macros/s/AKfycbzZfoAxxwzBE0aiCkzyuOcpCOLZJMGNXnHTzW64F3rh1lRBZRHerpTAi3aQZH3Lh2I8/exec';
+const allFields = ['hoTen', 'sanPham', 'kichThuoc', 'soLuong', 'donGia', 'ghiChu', 'nguoi', 'ngayNhap', 'ngay', 'tinhTrang', 'thanhToan', 'daTra'];
 
 let isLockSync = false; 
 
 // --- 1. KHỞI TẠO & ĐIỀN NGÀY MẶC ĐỊNH ---
 function setDefaultDate() {
     const ngayGiaoInput = document.getElementById('ngay');
-    if (ngayGiaoInput) {
+    const ngayNhapInput = document.getElementById('ngayNhap');
+    if (ngayGiaoInput || ngayNhapInput) {
         const now = new Date();
         const year = now.getFullYear();
         const month = String(now.getMonth() + 1).padStart(2, '0');
         const day = String(now.getDate()).padStart(2, '0');
-        ngayGiaoInput.value = `${year}-${month}-${day}`;
+        const formattedDate = `${year}-${month}-${day}`;
+        if (ngayGiaoInput) ngayGiaoInput.value = formattedDate;
+        if (ngayNhapInput) ngayNhapInput.value = formattedDate;
     }
 }
 
@@ -128,8 +131,7 @@ function updateCalculation() {
 document.getElementById('mainForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     updateCalculation();
-
-    const requiredFields = ['hoTen', 'sanPham', 'soLuong', 'donGia', 'nguoi', 'ngay'];
+    const requiredFields = ['hoTen', 'sanPham', 'soLuong', 'donGia', 'nguoi', 'ngayNhap', 'ngay'];
     let hasError = false;
     requiredFields.forEach(id => {
         const el = document.getElementById(id);
@@ -154,6 +156,7 @@ document.getElementById('mainForm').addEventListener('submit', async (e) => {
         donGia: parseFloat(document.getElementById('donGia').value) || 0,
         ghiChu: document.getElementById('ghiChu').value,
         nguoiPhanCong: document.getElementById('nguoi').value, 
+        ngayNhap: document.getElementById('ngayNhap').value,
         ngayGiao: document.getElementById('ngay').value,
         tinhTrang: document.getElementById('tinhTrang').value,
         thanhToan: document.getElementById('thanhToan').value,
@@ -254,9 +257,8 @@ function renderEditableTable(name) {
 
     currentTableData.forEach((row, index) => {
         let displayDate = row[0] ? row[0].toString() : "";
-        let inputDateVal = ""; // Tạo chuỗi định dạng yyyy-MM-dd cho thẻ input date
+        let inputDateVal = ""; 
         
-        // Trích xuất ngày từ chuỗi trả về để nạp vào ô chọn lịch
         if (displayDate.includes('T')) {
             let dObj = new Date(displayDate);
             inputDateVal = dObj.getFullYear() + '-' + String(dObj.getMonth() + 1).padStart(2, '0') + '-' + String(dObj.getDate()).padStart(2, '0');
@@ -322,16 +324,14 @@ function renderEditableTable(name) {
 }
 
 // --- 5. LOGIC BẢNG & ĐỒNG BỘ ---
-// THÊM MỚI: Hàm cập nhật chuỗi thời gian khi thay đổi ô input date trên bảng
 function handleTableDateChange(index, val) {
     if (!val) return;
-    let parts = val.split('-'); // Định dạng yyyy-mm-dd từ ô input
+    let parts = val.split('-'); 
     if (parts.length === 3) {
         const now = new Date();
         const hh = String(now.getHours()).padStart(2, '0');
         const mm = String(now.getMinutes()).padStart(2, '0');
         const ss = String(now.getSeconds()).padStart(2, '0');
-        // Đồng bộ ngược lại cấu trúc chuỗi ngày tháng dd/MM/yyyy HH:mm:ss của hệ thống
         currentTableData[index][0] = `${parts[2]}/${parts[1]}/${parts[0]} ${hh}:${mm}:${ss}`;
     }
 }
@@ -434,20 +434,39 @@ async function clearCustomerData(name) {
     } catch (e) { alert("Lỗi!"); }
 }
 
-// --- CẢI TIẾN: FILE EXCEL ĐƯỢC PHÂN TÁCH HÀNG NGHÌN THEO ĐỊNH DẠNG #.##0 CHUẨN KẾ TOÁN ---
 function downloadBillExcel(name) {
     const table = document.querySelector("#billArea table");
     if (!table) { alert("Không tìm thấy dữ liệu bảng!"); return; }
     
-    const tAll = parseFloat(document.getElementById("summary-tAll")?.innerText.replace(/[^0-9]/g, '')) || 0;
-    const pAll = parseFloat(document.getElementById("summary-pAll")?.innerText.replace(/[^0-9]/g, '')) || 0;
-    const debt = tAll - pAll;
+    let totalAll = 0, paidAll = 0;
+    
+    currentTableData.forEach((row) => {
+        const dg = Number(row[6]?.toString().replace(/,/g, '.').replace(/[^0-9.]/g, '')) || 0;
+        const sl = Number(row[5]?.toString().replace(/,/g, '.').replace(/[^0-9.]/g, '')) || 0;
+        const p = Number(row[12]?.toString().replace(/,/g, '.').replace(/[^0-9.]/g, '')) || 0;
+        
+        let ktVal = row[3] ? row[3].toString().trim().replace(/,/g, '.').toLowerCase() : "";
+        const parts = ktVal.split(/[x*]/);
+        let currentArea = 1;
+        if (parts.length >= 2) {
+            const numbers = parts.map(p => parseFloat(p.trim())).filter(n => !isNaN(n));
+            if (numbers.length >= 2) currentArea = numbers.reduce((a, b) => a * b, 1);
+        } else if (parts.length === 1 && !isNaN(parseFloat(parts[0]))) {
+            currentArea = parseFloat(parts[0]);
+        }
+        
+        totalAll += (currentArea * sl * dg);
+        paidAll += p;
+    });
+    
+    const debtAll = totalAll - paidAll;
 
     let excelTemplate = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
     <head>
         <meta charset="UTF-8">
         <style>
-            .num-format { mso-number-format:"\\#\\,\\#\\#0"; text-align: right; }
+            .money-format { mso-number-format:"\\#\\,\\#\\#0"; text-align: right; } /* Phân tách hàng nghìn 1.000.000 */
+            .qty-format { mso-number-format:"\\#\\,\\#\\#0\\.00"; text-align: center; } /* Ép hiển thị số thập phân 20,80 hoặc 20.80 tùy máy */
             .txt-center { text-align: center; }
             .txt-left { text-align: left; }
         </style>
@@ -457,13 +476,13 @@ function downloadBillExcel(name) {
         <table border="1" style="border-collapse: collapse; font-family: sans-serif;">
             <thead>
                 <tr style="background-color: #f2f2f2; font-weight: bold;">
-                    <th style="padding: 6px;">Ngày</th>
-                    <th style="padding: 6px;">Sản phẩm</th>
-                    <th style="padding: 6px;">Kích thước</th>
-                    <th style="padding: 6px;">Đơn giá</th>
-                    <th style="padding: 6px;">Số lượng</th>
-                    <th style="padding: 6px;">Đã trả</th>
-                    <th style="padding: 6px;">Tổng cộng</th>
+                    <th style="padding: 6px; width: 120px;">Ngày nhập</th>
+                    <th style="padding: 6px; width: 200px;">Sản phẩm</th>
+                    <th style="padding: 6px; width: 120px;">Kích thước</th>
+                    <th style="padding: 6px; width: 100px;">Đơn giá</th>
+                    <th style="padding: 6px; width: 80px;">Số lượng</th>
+                    <th style="padding: 6px; width: 100px;">Đã trả</th>
+                    <th style="padding: 6px; width: 120px;">Tổng cộng</th>
                 </tr>
             </thead>
             <tbody>`;
@@ -476,9 +495,9 @@ function downloadBillExcel(name) {
             displayDate = displayDate.split(' ')[0];
         }
         
-        const dg = Number(row[6]?.toString().replace(/[^0-9.]/g, '')) || 0;
-        const sl = Number(row[5]?.toString().replace(/[^0-9.]/g, '')) || 0;
-        const paid = Number(row[12]?.toString().replace(/[^0-9.]/g, '')) || 0;
+        const dg = Number(row[6]?.toString().replace(/,/g, '.').replace(/[^0-9.]/g, '')) || 0;
+        const sl = Number(row[5]?.toString().replace(/,/g, '.').replace(/[^0-9.]/g, '')) || 0;
+        const paid = Number(row[12]?.toString().replace(/,/g, '.').replace(/[^0-9.]/g, '')) || 0;
         
         let ktVal = row[3] ? row[3].toString().trim().replace(/,/g, '.').toLowerCase() : "";
         const parts = ktVal.split(/[x*]/);
@@ -496,17 +515,17 @@ function downloadBillExcel(name) {
             <td class="txt-center" style="padding: 4px;">${displayDate}</td>
             <td class="txt-left" style="padding: 4px;">${row[2]}</td>
             <td class="txt-center" style="padding: 4px;">${row[3] || '-'}</td>
-            <td class="num-format" style="padding: 4px;">${dg}</td>
-            <td class="txt-center" style="padding: 4px;">${sl}</td>
-            <td class="num-format" style="padding: 4px;">${paid}</td>
-            <td class="num-format" style="padding: 4px; font-weight: bold;">${total}</td>
+            <td class="money-format" style="padding: 4px;">${dg}</td>
+            <td class="qty-format" style="padding: 4px;">${sl}</td>
+            <td class="money-format" style="padding: 4px;">${paid}</td>
+            <td class="money-format" style="padding: 4px; font-weight: bold;">${total}</td>
         </tr>`;
     });
 
     excelTemplate += `<tr><td colspan="7" style="border: none; padding: 8px;"></td></tr>
-                      <tr><td colspan="5" style="border: none;"></td><td style="padding: 4px; background-color: #f9f9f9;"><b>Tổng cộng:</b></td><td class="num-format" style="padding: 4px; background-color: #f9f9f9; font-weight: bold;">${tAll}</td></tr>
-                      <tr><td colspan="5" style="border: none;"></td><td style="padding: 4px; background-color: #f9f9f9;"><b>Đã trả:</b></td><td class="num-format" style="padding: 4px; background-color: #f9f9f9; font-weight: bold;">${pAll}</td></tr>
-                      <tr><td colspan="5" style="border: none;"></td><td style="padding: 4px; background-color: #fff2f2; color: red;"><b>Còn nợ:</b></td><td class="num-format" style="padding: 4px; background-color: #fff2f2; font-weight: bold; color: red;">${debt}</td></tr>
+                      <tr><td colspan="5" style="border: none;"></td><td style="padding: 4px; background-color: #f9f9f9;"><b>Tổng cộng:</b></td><td class="money-format" style="padding: 4px; background-color: #f9f9f9; font-weight: bold;">${totalAll}</td></tr>
+                      <tr><td colspan="5" style="border: none;"></td><td style="padding: 4px; background-color: #f9f9f9;"><b>Đã trả:</b></td><td class="money-format" style="padding: 4px; background-color: #f9f9f9; font-weight: bold;">${paidAll}</td></tr>
+                      <tr><td colspan="5" style="border: none;"></td><td style="padding: 4px; background-color: #fff2f2; color: red;"><b>Còn nợ:</b></td><td class="money-format" style="padding: 4px; background-color: #fff2f2; font-weight: bold; color: red;">${debtAll}</td></tr>
                       </tbody></table></body></html>`;
 
     const blob = new Blob([excelTemplate], { type: "application/vnd.ms-excel;charset=utf-8" });
