@@ -1,5 +1,5 @@
 const ADMIN_PASSWORD = "12346"; 
-const scriptURL = 'const scriptURL = 'https://script.google.com/macros/s/AKfycbwnZc6Q95DJvRpy-udroL0ldYaBWYKSjqu2HW0aqwwY9wkIkAKTlWkI7y7vxZC3Fhy_/exec';
+const scriptURL = 'https://script.google.com/macros/s/AKfycbwnZc6Q95DJvRpy-udroL0ldYaBWYKSjqu2HW0aqwwY9wkIkAKTlWkI7y7vxZC3Fhy_/exec';
 const allFields = ['hoTen', 'sanPham', 'kichThuoc', 'soLuong', 'donGia', 'ghiChu', 'nguoi', 'ngayNhap', 'ngay', 'tinhTrang', 'thanhToan', 'daTra'];
 
 let isLockSync = false; 
