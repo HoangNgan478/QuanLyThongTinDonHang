@@ -8,14 +8,24 @@ let isLockSync = false;
 function setDefaultDate() {
     const ngayGiaoInput = document.getElementById('ngay');
     const ngayNhapInput = document.getElementById('ngayNhap');
+    
     if (ngayGiaoInput || ngayNhapInput) {
+        // Tạo định dạng ngày hôm nay làm mặc định phòng hờ
         const now = new Date();
         const year = now.getFullYear();
         const month = String(now.getMonth() + 1).padStart(2, '0');
         const day = String(now.getDate()).padStart(2, '0');
-        const formattedDate = `${year}-${month}-${day}`;
-        if (ngayGiaoInput) ngayGiaoInput.value = formattedDate;
-        if (ngayNhapInput) ngayNhapInput.value = formattedDate;
+        const formattedToday = `${year}-${month}-${day}`;
+        
+        // CẢI TIẾN: Kiểm tra xem có ngày nhập gần nhất được lưu lại trong bộ nhớ không
+        const lastNgayNhap = localStorage.getItem('last_ngay_nhap_session');
+
+        if (ngayGiaoInput) ngayGiaoInput.value = formattedToday; // Ngày giao vẫn mặc định là hôm nay
+        
+        if (ngayNhapInput) {
+            // Nếu có ngày đặt gần nhất thì giữ nguyên, không có thì mới dùng ngày hôm nay
+            ngayNhapInput.value = lastNgayNhap ? lastNgayNhap : formattedToday;
+        }
     }
 }
 
@@ -148,6 +158,9 @@ document.getElementById('mainForm').addEventListener('submit', async (e) => {
     const originalText = btn.innerText;
     btn.innerText = 'Đang lưu...'; btn.disabled = true;
 
+    // Lấy giá trị ngày nhập hiện tại trước khi form bị xóa trống để lưu vào bộ nhớ tạm
+    const currentNgayNhapVal = document.getElementById('ngayNhap').value;
+
     const payload = {
         hoTen: document.getElementById('hoTen').value,
         sanPham: document.getElementById('sanPham').value,
@@ -156,7 +169,7 @@ document.getElementById('mainForm').addEventListener('submit', async (e) => {
         donGia: parseFloat(document.getElementById('donGia').value) || 0,
         ghiChu: document.getElementById('ghiChu').value,
         nguoiPhanCong: document.getElementById('nguoi').value, 
-        ngayNhap: document.getElementById('ngayNhap').value,
+        ngayNhap: currentNgayNhapVal,
         ngayGiao: document.getElementById('ngay').value,
         tinhTrang: document.getElementById('tinhTrang').value,
         thanhToan: document.getElementById('thanhToan').value,
@@ -168,11 +181,16 @@ document.getElementById('mainForm').addEventListener('submit', async (e) => {
         btn.innerText = 'Thành công ✓';
         btn.style.backgroundColor = '#2ecc71';
         
+        // CẢI TIẾN: Ghi nhớ lại chuỗi ngày nhập vừa chốt đơn thành công vào LocalStorage
+        if (currentNgayNhapVal) {
+            localStorage.setItem('last_ngay_nhap_session', currentNgayNhapVal);
+        }
+
         ['sanPham', 'kichThuoc', 'ghiChu', 'soLuong', 'donGia', 'daTra'].forEach(id => {
             const el = document.getElementById(id); if (el) el.value = '';
         });
         
-        setDefaultDate();
+        setDefaultDate(); // Hàm này chạy lại sẽ tự động giữ lại ngày đặt gần nhất vừa lưu ở trên
         updateCalculation(); 
         saveAllFields(); 
         fetchCustomerList();
@@ -181,8 +199,6 @@ document.getElementById('mainForm').addEventListener('submit', async (e) => {
 });
 
 // --- 4. TRA CỨU & HÓA ĐƠN ---
-let currentTableData = []; 
-
 function showTab(tabId, element) {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.getElementById('content-' + tabId).classList.add('active');
@@ -290,13 +306,13 @@ function renderEditableTable(name) {
 
         html += `<tr style="border-bottom: 1px solid #eee;">
             <td style="vertical-align: top; text-align: center; padding: 6px 4px;">
-                <input type="date" class="bill-input" value="${inputDateVal}" oninput="handleTableDateChange(${index}, this.value)" style="width: 100%; box-sizing: border-box; font-size: 12px; text-align: center; font-family: sans-serif;">
+                <input type="date" id="table-date-${index}" class="bill-input" value="${inputDateVal}" oninput="handleTableDateChange(${index}, this.value)" style="width: 100%; box-sizing: border-box; font-size: 12px; text-align: center; font-family: sans-serif;">
             </td>
-            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: left; padding: 6px 4px;"><input class="bill-input bold" value="${row[2]}" oninput="currentTableData[${index}][2]=this.value" style="width:95%; max-width:100%; box-sizing:border-box;"></td>
-            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: center; padding: 6px 4px;"><input class="bill-input" value="${row[3] || '-'}" oninput="currentTableData[${index}][3]=this.value; updateTableSummary()" style="width:95%; text-align:center; box-sizing:border-box;"></td>
-            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: right; padding: 6px 4px;"><input class="bill-input" type="number" step="any" value="${dg}" oninput="handleTablePriceChange(${index}, this.value)" style="width:95%; text-align:right; box-sizing:border-box;"></td>
-            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: center; padding: 6px 4px;"><input id="table-sl-${index}" class="bill-input" type="number" step="any" value="${sl}" oninput="currentTableData[${index}][5]=this.value.replace(/,/g, '.'); updateTableSummary()" style="width:95%; text-align:center; box-sizing:border-box;"></td>
-            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: right; padding: 6px 4px;"><input class="bill-input paid" type="number" step="any" value="${p}" oninput="currentTableData[${index}][12]=this.value.replace(/,/g, '.'); updateTableSummary()" style="width:95%; text-align:right; box-sizing:border-box;"></td>
+            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: left; padding: 6px 4px;"><input class="bill-input bold" value="${row[2]}" oninput="currentTableData[${index}][2]=this.value"></td>
+            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: center; padding: 6px 4px;"><input class="bill-input" value="${row[3] || '-'}" oninput="currentTableData[${index}][3]=this.value; updateTableSummary()"></td>
+            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: right; padding: 6px 4px;"><input class="bill-input" type="number" step="any" value="${dg}" oninput="currentTableData[${index}][6]=this.value; updateTableSummary()"></td>
+            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: center; padding: 6px 4px;"><input id="table-sl-${index}" class="bill-input" type="number" step="any" value="${sl}" oninput="currentTableData[${index}][5]=this.value.replace(/,/g, '.'); updateTableSummary()"></td>
+            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: right; padding: 6px 4px;"><input class="bill-input paid" type="number" step="any" value="${p}" oninput="currentTableData[${index}][12]=this.value.replace(/,/g, '.'); updateTableSummary()"></td>
             <td class="bold" id="table-total-${index}" style="white-space: normal; word-break: break-word; vertical-align: top; text-align: right; padding: 12px 4px; font-size: 13px;">${rowTotal.toLocaleString('vi-VN')}</td>
             <td style="text-align:center; vertical-align: top; padding: 10px 4px;"><button onclick="deleteSingleRow('${name}', '${row[0]}', this)" style="border:none; background:none; color:var(--red); cursor:pointer;"><i class="fas fa-trash-alt"></i></button></td>
         </tr>`;
@@ -349,8 +365,8 @@ function handleTablePriceChange(index, val) {
 function updateTableSummary() {
     let tAll = 0, pAll = 0;
     currentTableData.forEach((row, index) => {
-        const dg = Number(row[6]?.toString().replace(/[^0-9.]/g, '')) || 0;
-        const sl = Number(row[5]?.toString().replace(/[^0-9.]/g, '')) || 0;
+        const dg = Number(row[6]?.toString().replace(/,/g, '.').replace(/[^0-9.]/g, '')) || 0;
+        const sl = Number(row[5]?.toString().replace(/,/g, '.').replace(/[^0-9.]/g, '')) || 0;
         
         let ktVal = row[3] ? row[3].toString().trim().replace(/,/g, '.').toLowerCase() : "";
         const parts = ktVal.split(/[x*]/);
@@ -364,7 +380,7 @@ function updateTableSummary() {
 
         const total = currentArea * sl * dg;
         tAll += total; 
-        pAll += Number(row[12]?.toString().replace(/[^0-9.]/g, '')) || 0;
+        pAll += Number(row[12]?.toString().replace(/,/g, '.').replace(/[^0-9.]/g, '')) || 0;
         
         const el = document.getElementById(`table-total-${index}`);
         if (el) el.innerText = total.toLocaleString('vi-VN');
@@ -377,61 +393,54 @@ function updateTableSummary() {
 
 function recalculateAllRows() {
     updateTableSummary();
-    alert("Đã cập nhật lại toàn bộ!");
+    alert("Đã cập nhật lại toàn bộ tính toán dựa trên Kích thước x Số lượng x Đơn giá!");
 }
 
 async function saveChangesToSheet(customerName) {
     const pass = prompt("Nhập mật khẩu:");
     if (pass !== ADMIN_PASSWORD) return;
-    const updatedList = currentTableData.map(row => ({
-        ngayTao: row[0], 
-        sanPham: row[2], 
-        kichThuoc: row[3], 
-        ghiChu: row[4], 
-        soLuong: parseFloat(row[5]) || 0, 
-        donGia: parseFloat(row[6]) || 0, 
-        nguoiPhanCong: row[8], 
-        ngayGiao: row[9], 
-        tinhTrang: row[10], 
-        thanhToan: row[11], 
-        daTra: parseFloat(row[12]) || 0
-    }));
-    try {
-        await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: "update", hoTen: customerName, list: updatedList }) });
-        alert("Đã cập nhật!"); searchCustomer();
-    } catch (e) { alert("Lỗi!"); }
-}
-
-async function deleteSingleRow(hoTen, ngayTao, btn) {
-    if (prompt("Nhập mật khẩu để xóa đơn lẻ:") !== ADMIN_PASSWORD) return;
     
-    const originalContent = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    const updatedList = currentTableData.map(row => {
+        let cleanNgayTao = row[0] ? row[0].toString().trim() : "";
+        
+        if (cleanNgayTao.includes('-') && !cleanNgayTao.includes('/')) {
+            let parts = cleanNgayTao.split('-');
+            if (parts.length === 3) {
+                let now = new Date();
+                let hh = String(now.getHours()).padStart(2, '0');
+                let mm = String(now.getMinutes()).padStart(2, '0');
+                let ss = String(now.getSeconds()).padStart(2, '0');
+                cleanNgayTao = `${parts[2]}/${parts[1]}/${parts[0]} ${hh}:${mm}:${ss}`;
+            }
+        }
+        
+        return {
+            ngayTao: cleanNgayTao,
+            hoTen: customerName,
+            sanPham: row[2],
+            kichThuoc: row[3],
+            ghiChu: row[4] || "",
+            soLuong: parseFloat(row[5]) || 0,
+            donGia: parseFloat(row[6]) || 0,
+            nguoiPhanCong: row[8] || "",
+            ngayGiao: row[9] || "",
+            tinhTrang: row[10] || "Duyệt",
+            thanhToan: row[11] || "Chưa thanh toán",
+            daTra: parseFloat(row[12]) || 0
+        };
+    });
 
     try {
         await fetch(scriptURL, { 
             method: 'POST', 
             mode: 'no-cors', 
-            body: JSON.stringify({ action: "deleteSingle", hoTen: hoTen, ngayTao: ngayTao }) 
+            body: JSON.stringify({ action: "update", hoTen: customerName, list: updatedList }) 
         });
-        
-        setTimeout(() => { 
-            alert("Đã xóa xong!");
-            searchCustomer(); 
-            loadMonitorTable(); 
-        }, 1500);
+        alert("Đã cập nhật!"); 
+        searchCustomer();
     } catch (e) { 
-        alert("Lỗi kết nối!"); 
-        btn.innerHTML = originalContent;
+        alert("Lỗi!"); 
     }
-}
-
-async function clearCustomerData(name) {
-    if (prompt("Nhập mật khẩu:") !== ADMIN_PASSWORD) return;
-    try {
-        await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: "delete", hoTen: name, pass: ADMIN_PASSWORD }) });
-        document.getElementById('invoiceResult').innerHTML = ""; fetchCustomerList(); loadMonitorTable();
-    } catch (e) { alert("Lỗi!"); }
 }
 
 function downloadBillExcel(name) {
@@ -447,12 +456,12 @@ function downloadBillExcel(name) {
         
         let ktVal = row[3] ? row[3].toString().trim().replace(/,/g, '.').toLowerCase() : "";
         const parts = ktVal.split(/[x*]/);
-        let currentArea = 1;
+        let area = 1;
         if (parts.length >= 2) {
             const numbers = parts.map(p => parseFloat(p.trim())).filter(n => !isNaN(n));
-            if (numbers.length >= 2) currentArea = numbers.reduce((a, b) => a * b, 1);
+            if (numbers.length >= 2) area = numbers.reduce((a, b) => a * b, 1);
         } else if (parts.length === 1 && !isNaN(parseFloat(parts[0]))) {
-            currentArea = parseFloat(parts[0]);
+            area = parseFloat(parts[0]);
         }
         
         totalAll += (currentArea * sl * dg);
@@ -465,8 +474,8 @@ function downloadBillExcel(name) {
     <head>
         <meta charset="UTF-8">
         <style>
-            .money-format { mso-number-format:"\\#\\,\\#\\#0"; text-align: right; } /* Phân tách hàng nghìn 1.000.000 */
-            .qty-format { mso-number-format:"\\#\\,\\#\\#0\\.00"; text-align: center; } /* Ép hiển thị số thập phân 20,80 hoặc 20.80 tùy máy */
+            .money-format { x:num; mso-number-format:"\\#\\,\\#\\#0"; text-align: right; }
+            .qty-format { x:num; mso-number-format:"\\#\\,\\#\\#0\\.00"; text-align: center; }
             .txt-center { text-align: center; }
             .txt-left { text-align: left; }
         </style>
@@ -489,8 +498,9 @@ function downloadBillExcel(name) {
 
     currentTableData.forEach((row) => {
         let displayDate = row[0] ? row[0].toString() : "";
-        if (displayDate.includes('T')) {
-            displayDate = new Date(displayDate).toLocaleDateString('vi-VN');
+        if (displayDate.includes('-') && !displayDate.includes('/')) {
+            let p = displayDate.split('-');
+            displayDate = p[2] + '/' + p[1] + '/' + p[0];
         } else if (displayDate.includes(' ')) {
             displayDate = displayDate.split(' ')[0];
         }
@@ -533,6 +543,24 @@ function downloadBillExcel(name) {
     link.href = URL.createObjectURL(blob);
     link.download = `Bill_${name.replace(/\s+/g, '_')}.xls`;
     link.click();
+}
+
+async function deleteSingleRow(hoTen, ngayTao, btn) {
+    if (prompt("Nhập mật khẩu để xóa đơn lẻ:") !== ADMIN_PASSWORD) return;
+    const originalContent = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    try {
+        await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: "deleteSingle", hoTen: hoTen, ngayTao: ngayTao }) });
+        setTimeout(() => { alert("Đã xóa xong!"); searchCustomer(); loadMonitorTable(); }, 1500);
+    } catch (e) { alert("Lỗi kết nối!"); btn.innerHTML = originalContent; }
+}
+
+async function clearCustomerData(name) {
+    if (prompt("Nhập mật khẩu:") !== ADMIN_PASSWORD) return;
+    try {
+        await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: "delete", hoTen: name, pass: ADMIN_PASSWORD }) });
+        document.getElementById('invoiceResult').innerHTML = ""; fetchCustomerList(); loadMonitorTable();
+    } catch (e) { alert("Lỗi!"); }
 }
 
 // --- 6. KHỞI CHẠY ---
