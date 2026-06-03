@@ -10,20 +10,17 @@ function setDefaultDate() {
     const ngayNhapInput = document.getElementById('ngayNhap');
     
     if (ngayGiaoInput || ngayNhapInput) {
-        // Tạo định dạng ngày hôm nay làm mặc định phòng hờ
         const now = new Date();
         const year = now.getFullYear();
         const month = String(now.getMonth() + 1).padStart(2, '0');
         const day = String(now.getDate()).padStart(2, '0');
         const formattedToday = `${year}-${month}-${day}`;
         
-        // CẢI TIẾN: Kiểm tra xem có ngày nhập gần nhất được lưu lại trong bộ nhớ không
         const lastNgayNhap = localStorage.getItem('last_ngay_nhap_session');
 
-        if (ngayGiaoInput) ngayGiaoInput.value = formattedToday; // Ngày giao vẫn mặc định là hôm nay
+        if (ngayGiaoInput) ngayGiaoInput.value = formattedToday; 
         
         if (ngayNhapInput) {
-            // Nếu có ngày đặt gần nhất thì giữ nguyên, không có thì mới dùng ngày hôm nay
             ngayNhapInput.value = lastNgayNhap ? lastNgayNhap : formattedToday;
         }
     }
@@ -158,7 +155,6 @@ document.getElementById('mainForm').addEventListener('submit', async (e) => {
     const originalText = btn.innerText;
     btn.innerText = 'Đang lưu...'; btn.disabled = true;
 
-    // Lấy giá trị ngày nhập hiện tại trước khi form bị xóa trống để lưu vào bộ nhớ tạm
     const currentNgayNhapVal = document.getElementById('ngayNhap').value;
 
     const payload = {
@@ -181,7 +177,6 @@ document.getElementById('mainForm').addEventListener('submit', async (e) => {
         btn.innerText = 'Thành công ✓';
         btn.style.backgroundColor = '#2ecc71';
         
-        // CẢI TIẾN: Ghi nhớ lại chuỗi ngày nhập vừa chốt đơn thành công vào LocalStorage
         if (currentNgayNhapVal) {
             localStorage.setItem('last_ngay_nhap_session', currentNgayNhapVal);
         }
@@ -190,7 +185,7 @@ document.getElementById('mainForm').addEventListener('submit', async (e) => {
             const el = document.getElementById(id); if (el) el.value = '';
         });
         
-        setDefaultDate(); // Hàm này chạy lại sẽ tự động giữ lại ngày đặt gần nhất vừa lưu ở trên
+        setDefaultDate();
         updateCalculation(); 
         saveAllFields(); 
         fetchCustomerList();
@@ -199,6 +194,8 @@ document.getElementById('mainForm').addEventListener('submit', async (e) => {
 });
 
 // --- 4. TRA CỨU & HÓA ĐƠN ---
+let currentTableData = []; 
+
 function showTab(tabId, element) {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.getElementById('content-' + tabId).classList.add('active');
@@ -308,11 +305,11 @@ function renderEditableTable(name) {
             <td style="vertical-align: top; text-align: center; padding: 6px 4px;">
                 <input type="date" id="table-date-${index}" class="bill-input" value="${inputDateVal}" oninput="handleTableDateChange(${index}, this.value)" style="width: 100%; box-sizing: border-box; font-size: 12px; text-align: center; font-family: sans-serif;">
             </td>
-            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: left; padding: 6px 4px;"><input class="bill-input bold" value="${row[2]}" oninput="currentTableData[${index}][2]=this.value"></td>
-            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: center; padding: 6px 4px;"><input class="bill-input" value="${row[3] || '-'}" oninput="currentTableData[${index}][3]=this.value; updateTableSummary()"></td>
-            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: right; padding: 6px 4px;"><input class="bill-input" type="number" step="any" value="${dg}" oninput="currentTableData[${index}][6]=this.value; updateTableSummary()"></td>
-            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: center; padding: 6px 4px;"><input id="table-sl-${index}" class="bill-input" type="number" step="any" value="${sl}" oninput="currentTableData[${index}][5]=this.value.replace(/,/g, '.'); updateTableSummary()"></td>
-            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: right; padding: 6px 4px;"><input class="bill-input paid" type="number" step="any" value="${p}" oninput="currentTableData[${index}][12]=this.value.replace(/,/g, '.'); updateTableSummary()"></td>
+            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: left; padding: 6px 4px;"><input class="bill-input bold" value="${row[2]}" oninput="currentTableData[${index}][2]=this.value" style="width:95%; max-width:100%; box-sizing:border-box;"></td>
+            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: center; padding: 6px 4px;"><input class="bill-input" value="${row[3] || '-'}" oninput="currentTableData[${index}][3]=this.value; updateTableSummary()" style="width:95%; text-align:center; box-sizing:border-box;"></td>
+            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: right; padding: 6px 4px;"><input class="bill-input" type="number" step="any" value="${dg}" oninput="handleTablePriceChange(${index}, this.value)" style="width:95%; text-align:right; box-sizing:border-box;"></td>
+            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: center; padding: 6px 4px;"><input id="table-sl-${index}" class="bill-input" type="number" step="any" value="${sl}" oninput="currentTableData[${index}][5]=this.value.replace(/,/g, '.'); updateTableSummary()" style="width:95%; text-align:center; box-sizing:border-box;"></td>
+            <td style="white-space: normal; word-break: break-word; vertical-align: top; text-align: right; padding: 6px 4px;"><input class="bill-input paid" type="number" step="any" value="${p}" oninput="currentTableData[${index}][12]=this.value.replace(/,/g, '.'); updateTableSummary()" style="width:95%; text-align:right; box-sizing:border-box;"></td>
             <td class="bold" id="table-total-${index}" style="white-space: normal; word-break: break-word; vertical-align: top; text-align: right; padding: 12px 4px; font-size: 13px;">${rowTotal.toLocaleString('vi-VN')}</td>
             <td style="text-align:center; vertical-align: top; padding: 10px 4px;"><button onclick="deleteSingleRow('${name}', '${row[0]}', this)" style="border:none; background:none; color:var(--red); cursor:pointer;"><i class="fas fa-trash-alt"></i></button></td>
         </tr>`;
@@ -365,8 +362,8 @@ function handleTablePriceChange(index, val) {
 function updateTableSummary() {
     let tAll = 0, pAll = 0;
     currentTableData.forEach((row, index) => {
-        const dg = Number(row[6]?.toString().replace(/,/g, '.').replace(/[^0-9.]/g, '')) || 0;
-        const sl = Number(row[5]?.toString().replace(/,/g, '.').replace(/[^0-9.]/g, '')) || 0;
+        const dg = Number(row[6]?.toString().replace(/[^0-9.]/g, '')) || 0;
+        const sl = Number(row[5]?.toString().replace(/[^0-9.]/g, '')) || 0;
         
         let ktVal = row[3] ? row[3].toString().trim().replace(/,/g, '.').toLowerCase() : "";
         const parts = ktVal.split(/[x*]/);
@@ -380,7 +377,7 @@ function updateTableSummary() {
 
         const total = currentArea * sl * dg;
         tAll += total; 
-        pAll += Number(row[12]?.toString().replace(/,/g, '.').replace(/[^0-9.]/g, '')) || 0;
+        pAll += Number(row[12]?.toString().replace(/[^0-9.]/g, '')) || 0;
         
         const el = document.getElementById(`table-total-${index}`);
         if (el) el.innerText = total.toLocaleString('vi-VN');
@@ -464,7 +461,7 @@ function downloadBillExcel(name) {
             area = parseFloat(parts[0]);
         }
         
-        totalAll += (currentArea * sl * dg);
+        totalAll += (area * sl * dg);
         paidAll += p;
     });
     
@@ -496,8 +493,9 @@ function downloadBillExcel(name) {
             </thead>
             <tbody>`;
 
-    currentTableData.forEach((row) => {
-        let displayDate = row[0] ? row[0].toString() : "";
+    currentTableData.forEach((row, index) => {
+        const dateEl = document.getElementById(`table-date-${index}`);
+        let displayDate = dateEl ? dateEl.value : (row[0] ? row[0].toString() : "");
         if (displayDate.includes('-') && !displayDate.includes('/')) {
             let p = displayDate.split('-');
             displayDate = p[2] + '/' + p[1] + '/' + p[0];
